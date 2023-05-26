@@ -5,12 +5,12 @@ library(magrittr)
 library(ggplot2)
 library(rmarkdown)
 
-#Reads in substrate plate map from github
+#Reads in substrate plate map - fill in path to where you downloaded file
 substrate_template=
-  read.csv("https://raw.githubusercontent.com/jakenash12/Aus-Invasions-2023-Course/main/Ecoplate_substrate_template.csv")
+  read.csv("https://raw.githubusercontent.com/jakenash12/Aus-Invasions-2023-Course/main/Ecoplate_substrate_template.csv", header=FALSE) %>%
+  as.matrix
 
-
-#creates a vector with all the subsrate names that will be looped through
+#creates a vector with all the substrate names that will be looped through
 substrate_vector=
   substrate_template %>%
   as.character %>% 
