@@ -5,7 +5,7 @@ library(magrittr)
 library(ggplot2)
 library(rmarkdown)
 
-#Reads in substrate plate map - fill in path to where you downloaded file
+#Reads in substrate plate map
 substrate_template=
   read.csv("https://raw.githubusercontent.com/jakenash12/Aus-Invasions-2023-Course/main/Ecoplate_substrate_template.csv", header=FALSE) %>%
   as.matrix
