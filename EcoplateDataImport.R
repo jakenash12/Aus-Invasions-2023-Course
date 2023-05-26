@@ -73,9 +73,9 @@ for (plate_df in list.files()[grepl("ECO", list.files())]){
     #averages absorbance for 3 replicates
     avg_abs=mean(Abs1, Abs2, Abs3)
     
+    #appends new line to main data frame
     newline <- data.frame(t(c(sample, assay, day, lid, i, avg_abs)))
     colnames(newline) <- colnames(absorbance_df_long)
-
     absorbance_df_long =
       rbind(absorbance_df_long, newline)
   }
