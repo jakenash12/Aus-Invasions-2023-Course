@@ -1,6 +1,6 @@
 # Australia NSF Course 2023 16S Data Analysis Pipeline
 
-# Creating Working Directory
+### Creating Working Directory
 ```
 WD_path=/anvil/scratch/x-jnash12/Aus23_16S
 ```
