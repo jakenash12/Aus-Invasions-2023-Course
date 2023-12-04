@@ -1,7 +1,7 @@
 # Australia NSF Course 2023 16S Data Analysis Pipeline
 
 ## Setup of environment
-### Creating Working Directory
+### Code to run at beginning of any session
 Variable WD_path is set to the path to our working directory and QIIME2 environment is activated. Make sure to run these 3 lines with every new session
 ```
 WD_path=/anvil/scratch/x-jnash12/Aus23_16S
@@ -9,7 +9,7 @@ module load biocontainers
 module load qiime2
 ```
 
-Creates working directory (do this only once - not with every new session)
+### Creates working directory (do this only once - not with every new session)
 ```
 mkdir ${WD_path}
 ```
