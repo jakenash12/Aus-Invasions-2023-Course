@@ -76,7 +76,7 @@ Cutadapt can trim primers/adapters from both the 5' and 3' ends of the forward a
 
 We provide reverse complements of the adapters and primers under the p-adapter flags in case read through happened. Normal primer sequences are provided in the p-front argument to trim them from the 5' end
 
-Takes /~ 20 minutes
+Takes \~ 20 minutes
 
 ### RunCutadapt
 ```
