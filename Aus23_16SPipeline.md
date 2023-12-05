@@ -46,6 +46,8 @@ All following commands will be done within QIIME2. QIIME2 is available from Purd
 ## Imports data into QIIME 
 Uses manifest to import paired end sequence data into QIIME2 then creates a sequencing summary visualization in qzv format that can be downloaded onto our local machine and viewed at this link https://view.qiime2.org/
 
+Takes a couple minutes
+
 ### DataImport
 ```
 #!/bin/bash
