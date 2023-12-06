@@ -41,7 +41,7 @@ done
 ```
 
 # QIIME Time
-All following commands will be done within QIIME2. QIIME2 is available from Purdue ANVIL as a module that can be loaded. To do this, we create batch jobs for each command and load the QIIME2 module at the beginning of each script 
+All following commands will be done within QIIME2. QIIME2 is available from Purdue ANVIL as a module that can be loaded. To do this, we create batch jobs for each command and load the QIIME2 module at the beginning of each script. To run the following chunks of code, you will need to create files using the nano command with the script name as noted in bold at top of code chunk, and then paste each chunk into the file. Then scripts can be run by typing sbatch {scriptname}
 
 ## Imports data into QIIME 
 Uses manifest to import paired end sequence data into QIIME2 then creates a sequencing summary visualization in qzv format that can be downloaded onto our local machine and viewed at this link https://view.qiime2.org/
@@ -227,7 +227,7 @@ qiime tools export \
   --input-path ${WD_path}/16S_FeatureTable/table.qza \
   --output-path ${WD_path}/QIIME_16S_files
 
-mv ${WD_path}/exportedfiles/feature-table.biom ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_table.biom
+mv ${WD_path}/QIIME_16S_files/feature-table.biom ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_table.biom
 
 biom convert -i ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_table.biom -o ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_table.tsv --to-tsv
 
@@ -235,7 +235,7 @@ qiime tools export \
   --input-path ${WD_path}/16S_FeatureTable/representative_sequences.qza \
   --output-path ${WD_path}/QIIME_16S_files
 
-mv ${WD_path}/exportedfiles/dna-sequences.fasta ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_repseqs.fasta
+mv ${WD_path}/QIIME_16S_files/dna-sequences.fasta ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_repseqs.fasta
 
 qiime tools extract \
   --input-path ${WD_path}/Silva_16S_taxonomy.qza \
@@ -245,7 +245,7 @@ qiime tools extract \
   --input-path ${WD_path}/GG_16S_taxonomy.qza \
   --output-path ${WD_path}/GGTaxonomy
 
-cp ${WD_path}/SilvaTaxonomy/*/data/taxonomy.tsv ${WD_path}/QIIME_16S_files/SilvaTaxonomy_16S.tsv
-cp ${WD_path}/GGTaxonomy/*/data/taxonomy.tsv ${WD_path}/QIIME_16S_files/GGTaxonomy_16S.tsv
+cp ${WD_path}/SilvaTaxonomy/*/data/taxonomy.tsv ${WD_path}/QIIME_16S_files/Aus23_16S_SilvaTaxonomy_16S.tsv
+cp ${WD_path}/GGTaxonomy/*/data/taxonomy.tsv ${WD_path}/QIIME_16S_files/Aus23_16S_GGTaxonomy_16S.tsv
 
 ```
