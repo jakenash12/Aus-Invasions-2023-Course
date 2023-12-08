@@ -155,6 +155,10 @@ time qiime dada2 denoise-paired \
 qiime metadata tabulate \
 	--m-input-file ${WD_path}/16S_FeatureTable/denoising_stats.qza \
 	--o-visualization ${WD_path}/16S_FeatureTable/denoising_stats.qzv
+
+qiime feature-table summarize \ 
+	--i-table ${WD_path}/16S_FeatureTable/table.qza \
+	--o-visualization ${WD_path}/16S_FeatureTable/table_summary.qzv
 ```
 
 ## Taxonomy assignment with Greengenes2 and SILVA
