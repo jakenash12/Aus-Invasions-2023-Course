@@ -127,10 +127,10 @@ Dada2 has very stringent quality filtering standards and will discard reads that
 The V4 region of 16S that we amplified is \~250bp after trimming primers/adapters. Reverse reads are often lower quality than forward reads and usually require trimming at an earlier position.  Dada2 requires 20-50 bp of overlap between the reads, so this leaves plenty of overlap remaining to recover the full V4 region (and we could even trim more if we are concerned about low quality bases). Here, we tested 4 different primer trimming settings as indicated below to determine which resulted in the highest percentage of reads being retained.
 
 Trimming parameters (modify ForTrim and RevTrim variables in script below to match these):
-For: 180 Rev: 120 \n
-For: 200 Rev: 140
-For: 220 Rev: 160
-For: 240 Rev: 180
+* For: 180 Rev: 120
+* For: 200 Rev: 140
+* For: 220 Rev: 160
+* For: 240 Rev: 180
 
 Takes \~1 hour
 
