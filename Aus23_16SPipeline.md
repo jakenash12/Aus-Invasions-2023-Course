@@ -134,7 +134,7 @@ Trimming parameters (modify ForTrim and RevTrim variables in script below to mat
 
 Takes \~1 hour
 
-### RunDada2_F240_R180
+### RunDada2_F180_R120
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-dada2.out
@@ -147,8 +147,8 @@ Takes \~1 hour
 
 module load biocontainers
 module load qiime2
-ForTrim=240
-RevTrim=180
+ForTrim=180
+RevTrim=120
 WD_path=/anvil/scratch/x-jnash12/Aus23_16S
 
 time qiime dada2 denoise-paired \
@@ -238,7 +238,7 @@ module load qiime2
 WD_path=/anvil/scratch/x-jnash12/Aus23_16S
 
 qiime tools export \
-  --input-path ${WD_path}/16S_FeatureTable/table.qza \
+  --input-path ${WD_path}/${WD_path}/16S_FeatureTable_180_120/table.qza \
   --output-path ${WD_path}/QIIME_16S_files
 
 mv ${WD_path}/QIIME_16S_files/feature-table.biom ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_table.biom
@@ -246,7 +246,7 @@ mv ${WD_path}/QIIME_16S_files/feature-table.biom ${WD_path}/QIIME_16S_files/Aus2
 biom convert -i ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_table.biom -o ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_table.tsv --to-tsv
 
 qiime tools export \
-  --input-path ${WD_path}/16S_FeatureTable/representative_sequences.qza \
+  --input-path ${WD_path}/${WD_path}/16S_FeatureTable_180_120/representative_sequences.qza \
   --output-path ${WD_path}/QIIME_16S_files
 
 mv ${WD_path}/QIIME_16S_files/dna-sequences.fasta ${WD_path}/QIIME_16S_files/Aus23_16S_ASV_repseqs.fasta
