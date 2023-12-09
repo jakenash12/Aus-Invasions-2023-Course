@@ -124,16 +124,22 @@ Dada2 is a pipeline for sequence error correction, chimera detection, read mergi
 
 Dada2 has very stringent quality filtering standards and will discard reads that do not meet. The --p-trunc-len-f and --p-trunc-len-r parameters allow us to trim off low quality regions at the end of the forward and reverse read, respectively, which helps more reads pass QC. The danger is if we trim too much, then the reads will not be long enough to merge. By inspecting the sequence quality plot after cutadapt, we can determine optimal parameters for this step.
 
-The V4 region of 16S that we amplified is \~250bp after trimming primers/adapters. Reverse reads are often lower quality than forward reads and usually require trimming at an earlier position. In the past I have trimmed forward reads at 220 bp and reverse reads at 120 bp. Dada2 requires 20-50 bp of overlap between the reads, so this leaves plenty of overlap remaining to recover the full V4 region (and we could even trim more if we are concerned about low quality bases)
+The V4 region of 16S that we amplified is \~250bp after trimming primers/adapters. Reverse reads are often lower quality than forward reads and usually require trimming at an earlier position.  Dada2 requires 20-50 bp of overlap between the reads, so this leaves plenty of overlap remaining to recover the full V4 region (and we could even trim more if we are concerned about low quality bases). Here, we tested 4 different primer trimming settings as indicated below to determine which resulted in the highest percentage of reads being retained.
+
+Trimming parameters (modify ForTrim and RevTrim variables in script below to match these):
+For: 180 Rev: 120
+For: 200 Rev: 140
+For: 220 Rev: 160
+For: 240 Rev: 180
 
 Takes \~1 hour
 
-### RunDada2
+### RunDada2_F240_R180
 ```
 #!/bin/bash
-#SBATCH -o slurm-%j-dada2_200_110.out
+#SBATCH -o slurm-%j-dada2.out
 #SBATCH -c 48
-#SBATCH --partition=wholenode 
+#SBATCH --partition=shared 
 #SBATCH -A BIO230020
 #SBATCH --export=ALL
 #SBATCH -t 24:00:00
@@ -141,24 +147,26 @@ Takes \~1 hour
 
 module load biocontainers
 module load qiime2
+ForTrim=240
+RevTrim=180
 WD_path=/anvil/scratch/x-jnash12/Aus23_16S
 
 time qiime dada2 denoise-paired \
 	--i-demultiplexed-seqs ${WD_path}/Aus_16S_demux_cutadapt/trimmed_sequences.qza \
-	--p-trunc-len-f 200 \
-	--p-trunc-len-r 110 \
-	--p-trim-left-f 5 \
-	--p-trim-left-r 5 \
+	--p-trunc-len-f ${ForTrim} \
+	--p-trunc-len-r ${RevTrim} \
+	--p-trim-left-f 0 \
+	--p-trim-left-r 0 \
 	--p-n-threads 0 \
-	--output-dir ${WD_path}/16S_FeatureTable 
+	--output-dir ${WD_path}/16S_FeatureTable_${ForTrim}_${RevTrim}
 
 qiime metadata tabulate \
-	--m-input-file ${WD_path}/16S_FeatureTable/denoising_stats.qza \
-	--o-visualization ${WD_path}/16S_FeatureTable/denoising_stats.qzv
+	--m-input-file ${WD_path}/16S_FeatureTable_${ForTrim}_${RevTrim}/denoising_stats.qza \
+	--o-visualization ${WD_path}/denoising_stats_${ForTrim}_${RevTrim}.qzv
 
-qiime feature-table summarize \ 
-	--i-table ${WD_path}/16S_FeatureTable/table.qza \
-	--o-visualization ${WD_path}/16S_FeatureTable/table_summary.qzv
+qiime feature-table summarize \
+	--i-table ${WD_path}/16S_FeatureTable_${ForTrim}_${RevTrim}/table.qza \
+	--o-visualization ${WD_path}/table_summary_${ForTrim}_${RevTrim}.qzv
 ```
 
 ## Taxonomy assignment with Greengenes2 and SILVA
@@ -182,7 +190,7 @@ module load qiime2
 WD_path=/anvil/scratch/x-jnash12/Aus23_16S
 
 qiime feature-classifier classify-sklearn \
-	--i-reads ${WD_path}/16S_FeatureTable/representative_sequences.qza \
+	--i-reads ${WD_path}/16S_FeatureTable_180_120/representative_sequences.qza \
 	--i-classifier ${WD_path}/silva-138-99-515-806-nb-classifier.qza \
 	--o-classification ${WD_path}/Silva_16S_taxonomy.qza \
 	--p-n-jobs 96
@@ -204,7 +212,7 @@ module load qiime2
 WD_path=/anvil/scratch/x-jnash12/Aus23_16S
 
 qiime feature-classifier classify-sklearn \
-	--i-reads ${WD_path}/16S_FeatureTable/representative_sequences.qza \
+	--i-reads ${WD_path}/16S_FeatureTable_180_120/representative_sequences.qza \
 	--i-classifier ${WD_path}/gg_2022_10_backbone.v4.nb.qza \
 	--o-classification ${WD_path}/GG_16S_taxonomy.qza \
 	--p-n-jobs 96
