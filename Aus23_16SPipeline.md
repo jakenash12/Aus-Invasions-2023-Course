@@ -307,7 +307,7 @@ qiime diversity alpha-group-significance \
 ```
 
 ## Creates taxonomy barplot using the silva taxonomy
-Generates a qzv visualization that can be used to interactively explore taxonomic differences between communities
+Generates qzv visualizations that can be used to interactively explore taxonomic differences between communities using GreenGenes2 and SILVA taxonomy
 
 ### TaxaBarplot
 ```
@@ -328,6 +328,12 @@ qiime taxa barplot \
   --i-taxonomy ${WD_path}/Silva_16S_taxonomy.qza \
   --m-metadata-file ${WD_path}/MetabarcodingMetadata.txt \
   --o-visualization ${WD_path}/Silva_taxa_barplot.qzv
+
+qiime taxa barplot \
+  --i-table ${WD_path}/16S_FeatureTable_180_120/table-no-mitochondria-no-chloroplast.qza \
+  --i-taxonomy ${WD_path}/GG_16S_taxonomy.qza \
+  --m-metadata-file ${WD_path}/MetabarcodingMetadata.txt \
+  --o-visualization ${WD_path}/GG_taxa_barplot.qzv
 ```
 
 ## Data Export
@@ -373,7 +379,6 @@ qiime tools extract \
 
 cp ${WD_path}/SilvaTaxonomy/*/data/taxonomy.tsv ${WD_path}/QIIME_16S_files/Aus23_16S_SilvaTaxonomy_16S.tsv
 cp ${WD_path}/GGTaxonomy/*/data/taxonomy.tsv ${WD_path}/QIIME_16S_files/Aus23_16S_GGTaxonomy_16S.tsv
-
 ```
 
 
