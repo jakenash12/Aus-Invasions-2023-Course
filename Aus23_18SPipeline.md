@@ -1,5 +1,5 @@
-# Australia NSF Course 2023 16S Data Analysis Pipeline
-This is a set of scripts to analyze 16S metabarcoding data (amplified with modified primer pair 515F and 806R from Cregger et al 2018) using QIIME2. These scripts were written to run on the Purdue ANVIL cluster using QIIME2 with the q2cli version 2023.7.0 that is available as a module on the cluster.  
+# Australia NSF Course 2023 18S Data Analysis Pipeline
+This is a set of scripts to analyze 18S metabarcoding data (amplified with primer pair WANDA and AML2) using QIIME2. These scripts were written to run on the Purdue ANVIL cluster using QIIME2 with the q2cli version 2023.7.0 that is available as a module on the cluster.  
 
 ## Setup of environment and downloads
 ### Code to run at beginning of every session
@@ -31,9 +31,9 @@ wget https://data.qiime2.org/classifiers/greengenes/gg_2022_10_backbone.v4.nb.qz
 QIIME2 uses a special data format with the file type qza to store sequence project data. Fastq files must be imported into QIIME2 first. Because our data are already demultiplexed, we need to generate a tsv file that links sample IDs to the filepaths of the forward and reverse reads to be used in the import command.
 
 ```
-ls ${WD_path}/Nash_8732_23101202 | grep "R1_001.fastq.gz" | sed 's/_R1_001.fastq.gz//g' | grep "16S" > ${WD_path}/filelist_16S
+ls ${WD_path}/Nash_8732_23101202 | grep "R1_001.fastq.gz" | sed 's/_R1_001.fastq.gz//g' | grep "18S" > ${WD_path}/filelist_18S
 printf "%s\t%s\t%s\n" "sample-id" "forward-absolute-filepath" "reverse-absolute-filepath" > ${WD_path}/QIIMEManifest.tsv
-for i in $(cat ${WD_path}/filelist_16S)
+for i in $(cat ${WD_path}/filelist_18S)
 do
 Sample=$(echo "$i" | awk -F '_' '{print $1}')
 SampleType=$(echo "$i" | awk -F '_' '{print $2}')
