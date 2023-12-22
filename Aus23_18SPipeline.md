@@ -132,7 +132,6 @@ Dada2 has very stringent quality filtering standards and will discard reads that
 The WANDA-AML2 amplicon region of 18S that we amplified is \~550bp after trimming primers/adapters. Reverse reads are often lower quality than forward reads and usually require trimming at an earlier position.  Dada2 requires 20-50 bp of overlap between the reads. Here, we tested 4 different primer trimming settings as indicated below to determine which resulted in the highest percentage of reads being retained.
 
 Given the lack of overlap, we will attempt untrimmed, ~20bp, and tbd based on reverse read quality
-
 ######## STOPPING HERE ON 12/18/2023 #########
 
 Trimming parameters (modify ForTrim and RevTrim variables in script below to match these):
