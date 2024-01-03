@@ -68,17 +68,16 @@ Takes a couple minutes
 module purge
 module load anaconda
 conda activate qiime2-2023.5
-WD_path=/scratch/alpine/jasigs@colostate.edu/Aus23_18S
 
 qiime tools import \
   --type 'SampleData[PairedEndSequencesWithQuality]' \
-  --input-path ${WD_path}/QIIMEManifest.tsv \
-  --output-path ${WD_path}/Aus_18S_demux.qza \
+  --input-path QIIMEManifest.tsv \
+  --output-path Aus_18S_demux.qza \
   --input-format PairedEndFastqManifestPhred33V2
 
 qiime demux summarize \
-  --i-data ${WD_path}/Aus_18S_demux.qza \
-  --o-visualization ${WD_path}/Aus_18S_demux.qzv
+  --i-data Aus_18S_demux.qza \
+  --o-visualization Aus_18S_demux.qzv
  ```
 
 ## Cutadapt to trim primers and adapter sequences
@@ -91,9 +90,9 @@ Takes \~30 minutes
 ### RunCutadapt (P-adapter-f is the reverse complement of AML2, p-front-f is WANDA, p-adapter-r is the reverse complement of WANDA, p-front-r is AML2)
 ```
 #!/bin/bash
-#SBATCH --job-name=import
+#SBATCH --job-name=cutadapt
 #SBATCH --nodes=1
-#SBATCH --ntasks=40
+#SBATCH --ntasks=20
 #SBATCH --partition=amilan
 #SBATCH --time=24:00:00
 #SBATCH --mail-type=ALL
@@ -102,10 +101,9 @@ Takes \~30 minutes
 module purge
 module load anaconda
 conda activate qiime2-2023.5
-WD_path=/scratch/alpine/jasigs@colostate.edu/Aus23_18S
 
 qiime cutadapt trim-paired \
-	--i-demultiplexed-sequences ${WD_path}/Aus_18S_demux.qza \
+	--i-demultiplexed-sequences Aus_18S_demux.qza \
 	--p-adapter-f GGAAACCAAAGTGTTTGGGTTC \
 	--p-adapter-f AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC \
 	--p-front-f CAGCCGCGGTAATTCCAGCT \
@@ -115,12 +113,12 @@ qiime cutadapt trim-paired \
 	--p-front-r GAACCCAAACACTTTGGTTTCC \
 	--p-front-r GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT \
 	--p-error-rate 0.15 \
-	--output-dir ${WD_path}/Aus_18S_demux_cutadapt \
+	--output-dir Aus_18S_demux_cutadapt \
 	--verbose
 
 qiime demux summarize \
-  --i-data ${WD_path}/Aus_18S_demux_cutadapt/trimmed_sequences.qza \
-  --o-visualization ${WD_path}/Aus_18S_demux_cutadapt.qzv
+  --i-data Aus_18S_demux_cutadapt/trimmed_sequences.qza \
+  --o-visualization Aus_18S_demux_cutadapt.qzv
 ```
 ## Need to attempt with differing error rates (e.g., 0.05, 0.10)
 
@@ -134,48 +132,93 @@ The WANDA-AML2 amplicon region of 18S that we amplified is \~550bp after trimmin
 Given the lack of overlap, we will attempt untrimmed, ~20bp, and tbd based on reverse read quality
 ######## STOPPING HERE ON 12/18/2023 #########
 
+######## STARTING HERE ON 01/02/2024 #########
+The CutAdapt QZA forward reads show a drastic drop in quality (below 30) at base 200
+The CutAdapt QZA reverse reads show a drastic drop in quality (below 30) at base 175
+*Need to consider the length of our amplicon. If we trim, there will be minimal overlap
 Trimming parameters (modify ForTrim and RevTrim variables in script below to match these):
-* For: 180 Rev: 120
-* For: 200 Rev: 140
-* For: 220 Rev: 160
-* For: 240 Rev: 180
+* For: 200 Rev: 175
+* For: 220 Rev: 200
 
 Takes \~1 hour
 
-### RunDada2_F180_R120
-```
+### RunDada2_F200_R175
+
+# Creating job file
+nano denoising.sh
+
+# Job code
+
 #!/bin/bash
-#SBATCH -o slurm-%j-dada2.out
-#SBATCH -c 48
-#SBATCH --partition=shared 
-#SBATCH -A BIO230020
-#SBATCH --export=ALL
-#SBATCH -t 24:00:00
-#SBATCH --mem=100G
+#SBATCH --job-name=denoising
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
 
-module load biocontainers
-module load qiime2
-ForTrim=180
-RevTrim=120
-WD_path=/anvil/scratch/x-jnash12/Aus23_16S
+#Activate qiime
 
-time qiime dada2 denoise-paired \
-	--i-demultiplexed-seqs ${WD_path}/Aus_16S_demux_cutadapt/trimmed_sequences.qza \
-	--p-trunc-len-f ${ForTrim} \
-	--p-trunc-len-r ${RevTrim} \
+module purge
+
+module load anaconda
+
+conda activate qiime2-2023.5
+
+qiime dada2 denoise-paired \
+	--i-demultiplexed-seqs trimmed_sequences.qza \
+	--p-trunc-len-f 200 \
+	--p-trunc-len-r 175 \
 	--p-trim-left-f 0 \
 	--p-trim-left-r 0 \
-	--p-n-threads 0 \
-	--output-dir ${WD_path}/16S_FeatureTable_${ForTrim}_${RevTrim}
+	--output-dir 18S_FeatureTable_F200_R175
 
 qiime metadata tabulate \
-	--m-input-file ${WD_path}/16S_FeatureTable_${ForTrim}_${RevTrim}/denoising_stats.qza \
-	--o-visualization ${WD_path}/denoising_stats_${ForTrim}_${RevTrim}.qzv
+	--m-input-file 18S_FeatureTable_F200_R175/denoising_stats.qza \
+	--o-visualization denoising_stats_F200_R175.qzv
 
 qiime feature-table summarize \
-	--i-table ${WD_path}/16S_FeatureTable_${ForTrim}_${RevTrim}/table.qza \
-	--o-visualization ${WD_path}/table_summary_${ForTrim}_${RevTrim}.qzv
+	--i-table 18S_FeatureTable_F200_R175/table.qza \
+	--o-visualization table_summary_F200_R175.qzv
 ```
+
+### OVERLAP WAS HORRENDOUS WITH THOSE PARAMETERS. ATTEMPTING AGAIN WITH 250F AND 250R ###
+
+#!/bin/bash
+#SBATCH --job-name=denoising250
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+#Activate qiime
+
+module purge
+
+module load anaconda
+
+conda activate qiime2-2023.5
+
+qiime dada2 denoise-paired \
+	--i-demultiplexed-seqs trimmed_sequences.qza \
+	--p-trunc-len-f 250 \
+	--p-trunc-len-r 250 \
+	--p-trim-left-f 0 \
+	--p-trim-left-r 0 \
+	--output-dir 18S_FeatureTable_F250_R250
+
+qiime metadata tabulate \
+	--m-input-file 18S_FeatureTable_F250_R250/denoising_stats.qza \
+	--o-visualization denoising_stats_F250_R250.qzv
+
+qiime feature-table summarize \
+	--i-table 18S_FeatureTable_F250_R250/table.qza \
+	--o-visualization table_summary_F250_R250.qzv
+
+### STOPPING HERE ON 01/03/2023
 
 ## Taxonomy assignment with Greengenes2 and SILVA
 Here we use the sklearn taxonomic classifiers trained on Greengenes2 and SILVA that we previously downloaded to assign taxonomy to the representative sequences that were generated by DADA2. We can compare the taxonomic assignments from SILVA and Greengenes2 to decide which we would like to use
