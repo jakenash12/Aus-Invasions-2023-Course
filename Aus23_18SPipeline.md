@@ -220,6 +220,196 @@ qiime feature-table summarize \
 
 ### STOPPING HERE ON 01/03/2023
 
+### Attempting again with 280F and 280R ###
+
+#!/bin/bash
+#SBATCH --job-name=denoising280
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+#Activate qiime
+
+module purge
+
+module load anaconda
+
+conda activate qiime2-2023.5
+
+qiime dada2 denoise-paired \
+	--i-demultiplexed-seqs trimmed_sequences.qza \
+	--p-trunc-len-f 280 \
+	--p-trunc-len-r 280 \
+	--p-trim-left-f 0 \
+	--p-trim-left-r 0 \
+	--output-dir 18S_FeatureTable_F280_R280
+
+qiime metadata tabulate \
+	--m-input-file 18S_FeatureTable_F280_R280/denoising_stats.qza \
+	--o-visualization denoising_stats_F280_R280.qzv
+
+qiime feature-table summarize \
+	--i-table 18S_FeatureTable_F280_R280/table.qza \
+	--o-visualization table_summary_F280_R280.qzv
+
+### Worst results yet; Will have to proceed without truncating or trimming to maximize overlap ###
+
+### Attempting again with 265F and 257R ###
+
+#!/bin/bash
+#SBATCH --job-name=denoising265
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+#Activate qiime
+
+module purge
+
+module load anaconda
+
+conda activate qiime2-2023.5
+
+qiime dada2 denoise-paired \
+	--i-demultiplexed-seqs trimmed_sequences.qza \
+	--p-trunc-len-f 265 \
+	--p-trunc-len-r 257 \
+	--p-trim-left-f 0 \
+	--p-trim-left-r 0 \
+	--output-dir 18S_FeatureTable_F265_R257
+
+qiime metadata tabulate \
+	--m-input-file 18S_FeatureTable_F265_R257/denoising_stats.qza \
+	--o-visualization denoising_stats_F265_R257.qzv
+
+qiime feature-table summarize \
+	--i-table 18S_FeatureTable_F265_R257/table.qza \
+	--o-visualization table_summary_F265_R257.qzv
+
+### Attempting again without truncating ###
+
+#!/bin/bash
+#SBATCH --job-name=denoising300
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+#Activate qiime
+
+module purge
+
+module load anaconda
+
+conda activate qiime2-2023.5
+
+qiime dada2 denoise-paired \
+	--i-demultiplexed-seqs Aus_18S_demux.qza \
+	--p-trunc-len-f 300 \
+	--p-trunc-len-r 300 \
+	--p-trim-left-f 20 \
+	--p-trim-left-r 22 \
+	--output-dir 18S_FeatureTable_F300_R300
+
+qiime metadata tabulate \
+	--m-input-file 18S_FeatureTable_F300_R300/denoising_stats.qza \
+	--o-visualization denoising_stats_F300_R300.qzv
+
+qiime feature-table summarize \
+	--i-table 18S_FeatureTable_F300_R300/table.qza \
+	--o-visualization table_summary_F300_R300.qzv
+
+
+## STOPPING HERE ON 01/05/2024 ##
+
+## Could mimic with Vsearch to cluster at 100%, 99%, 97% ##
+## Trying VSEARCH if this does not work. Use raw demultiplexed sequences (lowest quality score: 28, move up stepwise)
+
+## PICKING UP ON 01/22/2024 ##
+# Transitioning to Vsearch approach #
+
+# Merging paired end reads (following trimming)
+qiime vsearch merge-pairs \
+  --i-demultiplexed-seqs trimmed_sequences.qza \
+  --o-merged-sequences vsearch_merged_reads.qza
+
+# Dereplicating sequences (does not include any quality filtering)
+qiime vsearch dereplicate-sequences \
+  --i-sequences vsearch_merged_reads.qza \
+  --o-dereplicated-table vsearch_table.qza \
+  --o-dereplicated-sequences vsearch_rep-seqs.qza
+
+# Visualize rep seqs
+qiime feature-table tabulate-seqs \
+--i-data vsearch_rep-seqs.qza \
+--o-visualization vsearch_rep-seqs.qzv
+
+# Visualize feature table
+qiime feature-table summarize \
+--i-table vsearch_table.qza \
+--o-visualization vsearch_table.qzv \
+--m-sample-metadata-file MetabarcodingMetadata.txt
+
+
+## Training with Maarjam
+# Importing refseqs
+qiime tools import \
+--type 'FeatureData[Sequence]' \
+--input-path maarjam_database_SSU.qiime.fasta \
+--output-path MaarjAM-ref-seqs.qza
+
+# Importing taxonomy
+qiime tools import \
+--type 'FeatureData[Taxonomy]' \
+--input-format HeaderlessTSVTaxonomyFormat \
+--input-path maarjam_database_SSU.qiime.txt \
+--output-path maarjam-ref-tax.qza
+
+# Use QIIME2 artifacts to assign taxonomy w/ Maarjam
+
+#!/bin/bash
+#SBATCH --job-name=aus_taxonomy
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+#Activate qiime
+
+module purge
+
+module load anaconda
+
+conda activate qiime2-2023.5
+
+qiime feature-classifier classify-consensus-blast \
+--i-query vsearch_rep-seqs.qza \
+--i-reference-reads MaarjAM-ref-seqs.qza \
+--i-reference-taxonomy maarjam-ref-tax.qza \
+--p-maxaccepts 1 \
+--p-perc-identity 0.95 \
+--p-query-cov 0.90 \
+--p-strand both \
+--p-evalue 1e-50 \
+--p-min-consensus 0.51 \
+--output-dir maarjam-95
+
+
+
+
+
+
+
 ## Taxonomy assignment with Greengenes2 and SILVA
 Here we use the sklearn taxonomic classifiers trained on Greengenes2 and SILVA that we previously downloaded to assign taxonomy to the representative sequences that were generated by DADA2. We can compare the taxonomic assignments from SILVA and Greengenes2 to decide which we would like to use
 
