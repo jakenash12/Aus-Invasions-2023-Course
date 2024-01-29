@@ -352,12 +352,93 @@ qiime feature-table tabulate-seqs \
 --i-data vsearch_rep-seqs.qza \
 --o-visualization vsearch_rep-seqs.qzv
 
+qiime tools view vsearch_rep-seqs.qzv
+
 # Visualize feature table
 qiime feature-table summarize \
 --i-table vsearch_table.qza \
 --o-visualization vsearch_table.qzv \
 --m-sample-metadata-file MetabarcodingMetadata.txt
 
+## Need to run ##
+# Clustering at 99% 
+#!/bin/bash
+#SBATCH --job-name=cluster_99
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+#Activate qiime
+
+module purge
+
+module load anaconda
+
+conda activate qiime2-2023.5
+
+qiime vsearch cluster-features-de-novo \
+--i-table vsearch_table.qza \
+--i-sequences vsearch_rep-seqs.qza \
+--p-perc-identity 0.99 \
+--o-clustered-table table-dn-99.qza \
+--o-clustered-sequences rep-seqs-dn-99.qza
+
+# Clustering at 99.5% 
+#!/bin/bash
+#SBATCH --job-name=cluster_995
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+#Activate qiime
+
+module purge
+
+module load anaconda
+
+conda activate qiime2-2023.5
+
+qiime vsearch cluster-features-de-novo \
+--i-table vsearch_table.qza \
+--i-sequences vsearch_rep-seqs.qza \
+--p-perc-identity 0.995 \
+--o-clustered-table table-dn-995.qza \
+--o-clustered-sequences rep-seqs-dn-995.qza
+
+# Filtering out singletons (since that is most of them)
+#!/bin/bash
+#SBATCH --job-name=singletons
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+#Activate qiime
+
+module purge
+
+module load anaconda
+
+conda activate qiime2-2023.5
+
+qiime feature-table filter-features \
+  --i-table vsearch_table.qza \
+  --p-min-frequency 2 \
+  --o-filtered-table feature-frequency-filtered-table-singletons.qza
+
+# Visualize feature table
+qiime feature-table summarize \
+--i-table feature-frequency-filtered-table-singletons.qza \
+--o-visualization vsearch_table_no_singletons.qzv \
+--m-sample-metadata-file MetabarcodingMetadata.txt
 
 ## Training with Maarjam
 # Importing refseqs
@@ -380,7 +461,7 @@ qiime tools import \
 #SBATCH --nodes=1
 #SBATCH --ntasks=40
 #SBATCH --partition=amilan
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=jasigs@colostate.edu
 
@@ -403,10 +484,6 @@ qiime feature-classifier classify-consensus-blast \
 --p-evalue 1e-50 \
 --p-min-consensus 0.51 \
 --output-dir maarjam-95
-
-
-
-
 
 
 
