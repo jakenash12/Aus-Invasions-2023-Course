@@ -57,7 +57,12 @@ done
 ```
 for i in $(cat ${WD_path}/filelist_18S)
 do
-grep ">" ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.fasta | sed -E 's/^([^_]*).*$/\1/g' | sed 's/>//g' > ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headers
+grep ">" ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.fasta | sed -E 's/^([^_]*).*$/\1/g' | sed 's/>//g' > ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headersR1
+done
+
+for i in $(cat ${WD_path}/filelist_18S)
+do
+grep ">" ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.fasta | sed -E 's/^([^_]*).*$/\1/g' | sed 's/>//g' | sed 's/ 1/ 2/g'  > ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headersR2
 done
 
 mkdir ${WD_path}/UnmergedVxtractor
@@ -80,12 +85,24 @@ WD_path=/anvil/scratch/x-jnash12/Aus23_18S
 
 for i in $(cat ${WD_path}/filelist_18S)
 do
-filterbyname.sh in=${WD_path}/Nash_8732_23101202/${i}_R1_001.fastq.gz out=${WD_path}/UnmergedVxtractor/${i}_R1_001.V4.fastq.gz names=${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headers include=t
+filterbyname.sh in=${WD_path}/Nash_8732_23101202/${i}_R1_001.fastq.gz out=${WD_path}/UnmergedVxtractor/${i}_R1_001.V4.fastq.gz names=${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headersR1 include=t
 done
 
 for i in $(cat ${WD_path}/filelist_18S)
 do
-filterbyname.sh in=${WD_path}/Nash_8732_23101202/${i}_R2_001.fastq.gz out=${WD_path}/UnmergedVxtractor/${i}_R2_001.V4.fastq.gz names=${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headers include=t
+filterbyname.sh in=${WD_path}/Nash_8732_23101202/${i}_R2_001.fastq.gz out=${WD_path}/UnmergedVxtractor/${i}_R2_001.V4.fastq.gz names=${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headersR2 include=t
+done
+```
+
+### Verifies that forward and reverse read files contain same number of reads
+```
+T=$(printf '\t')
+for i in $(cat ${WD_path}/filelist_18S)
+do
+Sample=$(echo "${i%%_*}")
+For=$(gunzip -c ${WD_path}/UnmergedVxtractor/${i}_R1_001.V4.fastq.gz | wc -l)
+Rev=$(gunzip -c ${WD_path}/UnmergedVxtractor/${i}_R2_001.V4.fastq.gz | wc -l)
+echo "${Sample}${T}${For}${T}${Rev}"
 done
 ```
 
@@ -103,3 +120,5 @@ ExtractedV4=$(cat ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headers | wc -
 echo "${Sample}${T}${Raw}${T}${Merged}${T}${ExtractedV4}" >> ${WD_path}/ReadCounts18S.tsv
 done
 ```
+
+
