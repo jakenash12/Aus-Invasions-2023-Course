@@ -42,7 +42,6 @@ done
 
 ### downloads v-xtractor and uses it to extract 18S V4 region. FYI, when installing hmmer (a dependency of V-xtracter), make sure to install version 3.0 because I found that some newer versions (specifically v3.4) do not work
 ```
-WD_path=/anvil/scratch/x-jnash12/Aus23_18S
 mkdir ${WD_path}/vxtractor/
 cd ${WD_path}/vxtractor/
 git clone https://github.com/carden24/V-Xtractor
@@ -51,5 +50,56 @@ unzip ${WD_path}/vxtractor/V-Xtractor/HMMs.zip
 for i in $(cat ${WD_path}/filelist_18S)
 do
 	sbatch -o slurm-%j-VxtractorV4short.out --partition=shared --account=BIO230020 --export=ALL -t 6:00:00 -c 1 --wrap="perl ${WD_path}/vxtractor/V-Xtractor/vxtractor.pl -h ${WD_path}/vxtractor/V-Xtractor/HMMs/fungi/ -r V4 -i long -o ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.fasta -c ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.csv ${WD_path}/PEARReads/${i}.assembled.fasta"
+done
+```
+
+### Pulls out sequence headers of sequences identified as 18S by v-xtractor, then uses those to subset raw fastq (unmerged) files
+```
+for i in $(cat ${WD_path}/filelist_18S)
+do
+grep ">" ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.fasta | sed -E 's/^([^_]*).*$/\1/g' | sed 's/>//g' > ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headers
+done
+
+mkdir ${WD_path}/UnmergedVxtractor
+```
+
+### SubsetV4
+```
+#!/bin/bash
+#SBATCH -o slurm-%j-R1Subset.out
+#SBATCH -c 1
+#SBATCH --partition=shared 
+#SBATCH -A BIO230020
+#SBATCH --export=ALL
+#SBATCH -t 4:00:00
+
+module load biocontainers
+module load bbmap
+
+WD_path=/anvil/scratch/x-jnash12/Aus23_18S
+
+for i in $(cat ${WD_path}/filelist_18S)
+do
+filterbyname.sh in=${WD_path}/Nash_8732_23101202/${i}_R1_001.fastq.gz out=${WD_path}/UnmergedVxtractor/${i}_R1_001.V4.fastq.gz names=${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headers include=t
+done
+
+for i in $(cat ${WD_path}/filelist_18S)
+do
+filterbyname.sh in=${WD_path}/Nash_8732_23101202/${i}_R2_001.fastq.gz out=${WD_path}/UnmergedVxtractor/${i}_R2_001.V4.fastq.gz names=${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headers include=t
+done
+```
+
+### Generates tsv summary file displaying number of reads retained at each step
+```
+T=$(printf '\t')
+echo "Sample${T}Raw${T}Merged${T}ExtractedV4" > ${WD_path}/ReadCounts18S.tsv
+
+for i in $(cat ${WD_path}/filelist_18S)
+do
+Sample=$(echo "${i%%_*}")
+Raw=$(gunzip -c ${WD_path}/Nash_8732_23101202/${i}_R1_001.fastq.gz | echo $((`wc -l`/4)))
+Merged=$(grep ">" ${WD_path}/PEARReads/${i}.assembled.fasta | wc -l)
+ExtractedV4=$(cat ${WD_path}/vxtractor/${i}.assembled.vxtractorV4.headers | wc -l)
+echo "${Sample}${T}${Raw}${T}${Merged}${T}${ExtractedV4}" >> ${WD_path}/ReadCounts18S.tsv
 done
 ```
