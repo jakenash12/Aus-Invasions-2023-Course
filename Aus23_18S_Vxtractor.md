@@ -94,7 +94,7 @@ filterbyname.sh in=${WD_path}/Nash_8732_23101202/${i}_R2_001.fastq.gz out=${WD_p
 done
 ```
 
-### Verifies that forward and reverse read files contain same number of reads
+### Verifies that V4 filtered forward and reverse read files contain same number of reads
 ```
 T=$(printf '\t')
 for i in $(cat ${WD_path}/filelist_18S)
