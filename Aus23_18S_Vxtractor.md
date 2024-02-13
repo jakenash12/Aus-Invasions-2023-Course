@@ -32,7 +32,7 @@ sbatch -o slurm-%j-PEAR18S.out --partition=shared --account=BIO230020 --export=A
 done
 ```
 
-### converts merged fastq files to fasta using seqret
+### converts merged fastq files to fasta using seqtk
 ```
 for i in $(cat ${WD_path}/filelist_18S)
 do
