@@ -242,3 +242,52 @@ qiime feature-table summarize \
 --i-table glom-only-final-table.qza \
 --o-visualization glom-only-final-table.qzv \
 --m-sample-metadata-file MetabarcodingMetadata.txt
+
+# Filtering out rep seqs
+qiime feature-table filter-seqs \
+--i-data Aus_18S_demux.vxtractor.dada2-rep-seqs.qza \
+--i-table glom-only-final-table.qza \
+--o-filtered-data glom-only-final-rep-seqs.qza
+
+# Visualize rep seqs
+qiime feature-table tabulate-seqs \
+--i-data glom-only-final-rep-seqs.qza \
+--o-visualization glom-only-final-rep-seqs.qzv
+
+# Make phylogenetic tree
+#!/bin/bash
+#SBATCH --job-name=phylogeny
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+module purge
+module load anaconda
+conda activate qiime2-2023.5
+
+qiime phylogeny align-to-tree-mafft-fasttree \
+--i-sequences glom-only-final-rep-seqs.qza \
+--o-alignment aligned-rep-seqs.qza \
+--o-masked-alignment masked-aligned-rep-seqs.qza \
+--o-tree unrooted-tree.qza \
+--o-rooted-tree rooted-tree.qza
+
+# Merging all classification files (Order matters)
+qiime feature-table merge-taxa \
+--i-data maarjam-80/maarj80_classification.qza \
+--i-data maarjam-90/maarj90_classification.qza \
+--i-data maarjam-95/maarj95_classification.qza \
+--o-merged-data merged-classification.qza
+
+# Visualize final classification
+qiime metadata tabulate \
+--m-input-file merged-classification.qza \
+--o-visualization merged-classification.qzv
+
+# Export rep seqs (Need to do)
+qiime tools export \
+--input-path koa-ohia-haka-merged-rep-seqs.qza \
+--output-path phyloseq
