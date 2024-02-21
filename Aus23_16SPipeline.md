@@ -306,7 +306,7 @@ qiime diversity alpha-group-significance \
   --o-visualization ${WD_path}/core-metrics-results/evenness-group-significance.qzv
 ```
 
-## Creates taxonomy barplot using the silva taxonomy
+## Creates taxonomy barplots using the silva and greengenes taxonomies
 Generates qzv visualizations that can be used to interactively explore taxonomic differences between communities using GreenGenes2 and SILVA taxonomy
 
 ### TaxaBarplot
@@ -334,6 +334,56 @@ qiime taxa barplot \
   --i-taxonomy ${WD_path}/GG_16S_taxonomy.qza \
   --m-metadata-file ${WD_path}/MetabarcodingMetadata.txt \
   --o-visualization ${WD_path}/GG_taxa_barplot.qzv
+```
+
+### ANCOMBC-TreeSpecies
+Runs ancombc at ASV and Genus level to identify taxa that differ between Eucalyptus and Pine roots (removes all soil samples). FYI, right now this code isn't working - I think it's an installation issue
+```
+#!/bin/bash
+#SBATCH -o slurm-%j-ANCOMBC.out
+#SBATCH -c 1
+#SBATCH --partition=shared 
+#SBATCH -A BIO230020
+#SBATCH --export=ALL
+#SBATCH -t 2:00:00
+
+module load biocontainers
+module load qiime2
+WD_path=/anvil/scratch/x-jnash12/Aus23_16S
+
+qiime feature-table filter-samples \
+	--i-table ${WD_path}/16S_FeatureTable_180_120/table-no-mitochondria-no-chloroplast.qza \
+	--m-metadata-file ${WD_path}/MetabarcodingMetadata.txt \
+	--p-where "[SampleType]='Root'" \
+	--o-filtered-table ${WD_path}/table-no-mitochondria-no-chloroplast_RootOnly.qza
+
+qiime taxa collapse \
+  --i-table ${WD_path}/table-no-mitochondria-no-chloroplast_RootOnly.qza \
+  --i-taxonomy ${WD_path}/Silva_16S_taxonomy.qza \
+  --p-level 6 \
+  --o-collapsed-table ${WD_path}/table-no-mitochondria-no-chloroplast_RootOnly_genus.qza
+
+qiime composition ancombc \
+  --i-table ${WD_path}/table-no-mitochondria-no-chloroplast_RootOnly_genus.qza  \
+  --m-metadata-file ${WD_path}/MetabarcodingMetadata.txt \
+  --p-formula 'TreeSpecies' \
+  --o-differentials ${WD_path}/ancombc_TreeSpecies_genus.qza
+
+qiime composition da-barplot \
+  --i-data ${WD_path}/ancombc_TreeSpecies_genus.qza \
+  --p-significance-threshold 0.01 \
+  --o-visualization ${WD_path}/ancombc_TreeSpecies_genus.qzv
+
+qiime composition ancombc \
+  --i-table ${WD_path}/table-no-mitochondria-no-chloroplast_RootOnly.qza  \
+  --m-metadata-file ${WD_path}/MetabarcodingMetadata.txt \
+  --p-formula 'TreeSpecies' \
+  --o-differentials ${WD_path}/ancombc_TreeSpecies_ASV.qza
+
+qiime composition da-barplot \
+  --i-data ${WD_path}/ancombc_TreeSpecies_ASV.qza \
+  --p-significance-threshold 0.01 \
+  --o-visualization ${WD_path}/ancombc_TreeSpecies_ASV.qzv
 ```
 
 ## Data Export
@@ -381,4 +431,42 @@ cp ${WD_path}/SilvaTaxonomy/*/data/taxonomy.tsv ${WD_path}/QIIME_16S_files/Aus23
 cp ${WD_path}/GGTaxonomy/*/data/taxonomy.tsv ${WD_path}/QIIME_16S_files/Aus23_16S_GGTaxonomy_16S.tsv
 ```
 
+### ImportData
+If data needs to be imported back into QIIME (ASV table in biom format, taxonomy files, representative seqs), it can be done with this script
 
+```
+#!/bin/bash
+#SBATCH -o slurm-%j-ImportQIIME.out
+#SBATCH -c 1
+#SBATCH --partition=shared 
+#SBATCH -A BIO230020
+#SBATCH --export=ALL
+#SBATCH -t 2:00:00
+
+module load biocontainers
+module load qiime2
+WD_path=/anvil/scratch/x-jnash12/Aus23_16S
+
+mkdir ${WD_path}/16S_FeatureTable_180_120/
+
+qiime tools import \
+  --input-path ${WD_path}/Aus23_16S_ASV_table.biom \
+  --type 'FeatureTable[Frequency]' \
+  --input-format BIOMV210Format \
+  --output-path ${WD_path}/16S_FeatureTable_180_120/table.qza
+
+qiime tools import \
+  --input-path ${WD_path}/Aus23_16S_ASV_repseqs.fasta  \
+  --output-path ${WD_path}/16S_FeatureTable_180_120/representative_sequences.qza \
+  --type 'FeatureData[Sequence]'
+
+qiime tools import \
+	--input-path ${WD_path}/Aus23_16S_SilvaTaxonomy_16S.tsv \
+	--output-path ${WD_path}/Silva_16S_taxonomy.qza \
+	--type FeatureData[Taxonomy]
+
+qiime tools import \
+	--input-path ${WD_path}/Aus23_16S_GGTaxonomy_16S.tsv \
+	--output-path ${WD_path}/GG_16S_taxonomy.qza \
+	--type FeatureData[Taxonomy]
+```
