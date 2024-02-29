@@ -16,6 +16,8 @@ library(vegan)
 library(car)
 library(magrittr)
 library(ecodist)
+library(ANCOMBC)
+library(phyloseq)
 ```
 
 ## Import taxonomy file and parse taxonomy string into separate columns
@@ -136,4 +138,41 @@ AlphaDiv_16S %>%
 AlphaDiv_16S %>%
   lm(Shannon~SampleType*TreeSpecies,.) %>%
   Anova
+```
+
+
+## Conducts differential abundance testing with ANCOM-BC
+Need to work more on this
+```{r}
+OTU_16S_phyloseq=
+  OtuMat16S_filtered_rare %>%
+  as.matrix %>%
+  otu_table(taxa_are_rows = FALSE)
+
+TAX_16S_phyloseq=
+  TaxMat16S %>%
+  filter(otu %in% colnames(OtuMat16S_filtered_rare)) %>%
+  column_to_rownames("otu") %>%
+  as.matrix %>%
+  tax_table
+  
+SAMPLES_16S_phyloseq=
+  Metadata_16S %>%
+  filter(SampleID %in% rownames(OTU_16S_phyloseq)) %>%
+  column_to_rownames("SampleID") %>%
+  sample_data(Metadata_16S)
+
+Phyloseq16S <- phyloseq(OTU_16S_phyloseq, TAX_16S_phyloseq, SAMPLES_16S_phyloseq)
+  
+ANCOM_16S_SampleType = ancombc(data = Phyloseq16S, assay_name = "counts", 
+              tax_level = "Genus", phyloseq = NULL, 
+              formula = "SampleType + TreeSpecies", 
+              group="SampleType", p_adj_method = "holm", prv_cut = 0.10, lib_cut = 1000, 
+              struc_zero = TRUE, neg_lb = TRUE, tol = 1e-5, 
+              max_iter = 100, conserve = TRUE, alpha = 0.05, global = TRUE,
+              n_cl = 1, verbose = TRUE)
+
+ANCOM_16S_SampleType_res= ANCOM_16S_SampleType$res
+ANCOM_16S_SampleType_res$se %>% View
+ANCOM_16S_SampleType_res$p_val %>% View
 ```
