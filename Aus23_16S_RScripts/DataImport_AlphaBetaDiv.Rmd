@@ -93,17 +93,17 @@ OtuMat16S_filtered_rare=
 PCoA is first plotted with points colored by sample type. Then PCoA is plotted colored by tree species, this time using axes 2 and 3 because axis 3 shows separation by tree species best.
 ```{r, warning=FALSE, message=FALSE}
 DistMat16s=vegdist(OtuMat16S_filtered_rare, method = "aitchison", pseudocount=1)
-PCoA_16S_aitchison_pcoa <- ecodist::pco(DistMat16s)
-PCoA_16S_aitchison_pcoa_df=
-  PCoA_16S_aitchison_pcoa$vectors %>%
+PCoA_16S_aitchison<- ecodist::pco(DistMat16s)
+PCoA_16S_aitchison_df=
+  PCoA_16S_aitchison$vectors %>%
   as.data.frame %>%
   cbind(data.frame(SampleID=rownames(.)), .) %>%
   left_join(Metadata_16S)
 
-ggplot(PCoA_16S_aitchison_pcoa_df, aes(x=X1, y=X2)) +
+ggplot(PCoA_16S_aitchison_df, aes(x=X1, y=X2)) +
   geom_point(aes(color=SampleType))
 
-PCoA_16S_aitchison_pcoa_df %>%
+PCoA_16S_aitchison_df %>%
   filter(SampleType=="Root") %>%
   ggplot(aes(x=X3, y=X2)) +
   geom_point(aes(color=TreeSpecies))
@@ -111,8 +111,8 @@ PCoA_16S_aitchison_pcoa_df %>%
 
 ## Conducts PERMANOVA with SampleType*TreeSpecies
 ```{r, warning=FALSE, message=FALSE}
-PERMANOVA_SampleType=adonis(DistMat16s~SampleType*TreeSpecies, data=PCoA_16S_aitchison_pcoa_df)
-PERMANOVA_SampleType$aov.tab
+PERMANOVA_SampleType=adonis2(DistMat16s~SampleType*TreeSpecies,data=PCoA_16S_aitchison_df)
+PERMANOVA_SampleType
 ```
 
 ## Generates alpha diversity dataframe, plots, then ANOVA
@@ -143,7 +143,7 @@ AlphaDiv_16S %>%
 
 ## Conducts differential abundance testing with ANCOM-BC
 Data is first converted to a phyloseq object because ANCOMBC needs it in that format. Need to work more on this
-```{r}
+```{r, warning=FALSE, message=FALSE}
 OTU_16S_phyloseq=
   OtuMat16S_filtered_rare %>%
   as.matrix %>%
@@ -171,7 +171,5 @@ ANCOM_16S_SampleType = ancombc(data = Phyloseq16S, assay_name = "counts",
               struc_zero = TRUE, neg_lb = TRUE, tol = 1e-5, 
               max_iter = 100, conserve = TRUE, alpha = 0.05, global = TRUE,
               n_cl = 1, verbose = TRUE)
-
-ANCOM_16S_SampleType_res$q_val %>% View
 
 ```
