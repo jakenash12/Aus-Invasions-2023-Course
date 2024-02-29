@@ -142,7 +142,7 @@ AlphaDiv_16S %>%
 
 
 ## Conducts differential abundance testing with ANCOM-BC
-Need to work more on this
+Data is first converted to a phyloseq object because ANCOMBC needs it in that format. Need to work more on this
 ```{r}
 OTU_16S_phyloseq=
   OtuMat16S_filtered_rare %>%
@@ -172,7 +172,6 @@ ANCOM_16S_SampleType = ancombc(data = Phyloseq16S, assay_name = "counts",
               max_iter = 100, conserve = TRUE, alpha = 0.05, global = TRUE,
               n_cl = 1, verbose = TRUE)
 
-ANCOM_16S_SampleType_res= ANCOM_16S_SampleType$res
-ANCOM_16S_SampleType_res$se %>% View
-ANCOM_16S_SampleType_res$p_val %>% View
+ANCOM_16S_SampleType_res$q_val %>% View
+
 ```
