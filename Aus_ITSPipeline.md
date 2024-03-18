@@ -1,4 +1,4 @@
-### Setup of working directory - change this path to match your file system
+### Setup of working directory
 ```
 WD_path=/anvil/scratch/x-jnash12/Aus_ITS
 mkdir ${WD_path}
@@ -10,7 +10,7 @@ cd ${WD_path}
 sbatch -o slurm-%j-DataDL.out --partition=shared --account=BIO230020 --export=ALL -t 2:00:00 -c 1 --wrap="rclone copy remote:'Vilgalys Lab'/NGS_RAW/Nash_8732_23101202 ${WD_path}/Nash_8732_23101202"
 ```
 
-### Generates filelist to loop through, including only Mengyi's samples which were also on this run
+### Generates filelist to loop through, filtering to include only ITS sequences
 ```
 ls ${WD_path}/Nash_8732_23101202" | grep "R1_001.fastq.gz" | grep "ITS" | sed 's/_R1_001.fastq.gz//g' > ${WD_path}/filelist
 ```
@@ -28,6 +28,7 @@ done
 ```
 
 ### Uses ITSxpress to extract ITS2 region from merged reads
+ITSxpress uses a pre-trained database to identify sequences that contain the ITS2 region, then trims those sequences to remove the adjacent 5.8S and LSU sequences, which are more conserved and less useful for clustering and taxonomic identification
 ```
 conda activate ITSxpress
 mkdir ${WD_path}/ITSxpressReads/ && cd ${WD_path}/ITSxpressReads/
@@ -38,7 +39,8 @@ sbatch -o slurm-%j-ITSxpress.out --partition=shared --account=BIO230020 --export
 done
 ```
 
-### Prepares QIIME2 manifest
+### Prepares QIIME2 manifest using custom script.
+The QIIME2 manifest is a tab separated value file that points to the file locations for each of the demultiplexed sequence files and associates that file with a unique sample ID
 ```
 printf "%s\t%s\n" "sample-id" "absolute-filepath" > ${WD_path}/QIIMEManifest.tsv
 for i in $(cat ${WD_path}/filelist)
@@ -48,7 +50,7 @@ printf "%s\t%s\n" "${SampleID}" "${WD_path}/ITSxpressReads/${i}.ITS.fastq.gz" >>
 done
 ```
 
-### Imports data into QIIME2. Submit this as a batch script titled DataImport
+### Imports data into QIIME2 using manifest to point to file locations
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-QIIME_Import.out
@@ -74,7 +76,7 @@ qiime demux summarize \
 
  ```
 
-### Uses Dada2 to denoise, quality filter, chimera filter, and ASV call. Submit this as a batch script titled Dada2SE
+### Uses Dada2 to denoise, quality filter, chimera filter, and ASV call
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-dada2.out
@@ -111,7 +113,8 @@ qiime feature-table tabulate-seqs \
 ```
 
 
-### Runs Vsearch clustering to generate 97% OTUs. Submit this as a batch script titled ClusterDada2
+### Runs Vsearch clustering to generate 97% OTUs
+Output is our final OTU table and a set of associated representative sequences that are used for taxonomic classification
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-vsearch_cluster.out
@@ -142,7 +145,8 @@ qiime feature-table tabulate-seqs \
 	--o-visualization ${WD_path}/ITS2_Dada2_repseqs97.qzv
 ```
 
-### Taxonomic Classification - Uses a pre-trained taxonomic classifier for the UNITE database of full length ITS sequences
+### Taxonomic Classification using QIIME2's sklearn machine learning classifier
+Uses a pre-trained taxonomic classifier for the UNITE database of full length ITS sequences
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-sklearn_classify.out
@@ -166,7 +170,8 @@ qiime feature-classifier classify-sklearn \
   --p-n-jobs -1
 ```
 
-### ExportData - converts QIIME2 format files into tsv files that can be downloaded and read into R for statistics
+### ExportData
+Converts QIIME2 format files into tsv files that can be downloaded and read into R for statistics
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-ExportQIIME.out
