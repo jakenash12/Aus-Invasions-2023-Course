@@ -111,7 +111,7 @@ qiime feature-table tabulate-seqs \
 ```
 
 
-### OPTIONAL: The Dada2 ASVs can be used as-is, or you can run Vsearch clustering to generate 97% OTUs. Submit this as a batch script titled ClusterDada2
+### Runs Vsearch clustering to generate 97% OTUs. Submit this as a batch script titled ClusterDada2
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-vsearch_cluster.out
@@ -142,7 +142,7 @@ qiime feature-table tabulate-seqs \
 	--o-visualization ${WD_path}/ITS2_Dada2_repseqs97.qzv
 ```
 
-### Taxonomic Classification - Below uses a pre-trained taxonomic classifier for the UNITE database of full length ITS sequences. I am working on training my own classifier for the UNITE database that has been trimmed to only include the ITS2 region. The trimmed ITS2 classifier should perform better, but the pretrained version below 
+### Taxonomic Classification - Uses a pre-trained taxonomic classifier for the UNITE database of full length ITS sequences
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-sklearn_classify.out
@@ -166,7 +166,7 @@ qiime feature-classifier classify-sklearn \
   --p-n-jobs -1
 ```
 
-### ExportData
+### ExportData - converts QIIME2 format files into tsv files that can be downloaded and read into R for statistics
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-ExportQIIME.out
