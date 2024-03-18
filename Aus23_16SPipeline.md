@@ -249,6 +249,30 @@ qiime feature-table summarize \
 	--o-visualization ${WD_path}/16S_FeatureTable_180_120/table-no-mitochondria-no-chloroplast_summary.qzv
 ```
 
+### RareCurves100
+```
+#!/bin/bash
+#SBATCH -o slurm-%j-RareCurve100.out
+#SBATCH -c 1
+#SBATCH --partition=shared 
+#SBATCH -A BIO230020
+#SBATCH --export=ALL
+#SBATCH -t 12:00:00
+
+
+module load biocontainers
+module load qiime2
+WD_path=/anvil/scratch/x-jnash12/Aus23_16S
+
+qiime diversity alpha-rarefaction \
+	--i-table ${WD_path}/16S_FeatureTable_180_120/table-no-mitochondria-no-chloroplast.qza \
+	--p-max-depth 137314 \
+	--p-metrics observed_features \
+	--p-steps 200 \
+	--p-iterations 100 \
+	--o-visualization ${WD_path}/table-no-mitochondria-no-chloroplast_rarecurve100.qzv
+```
+
 ## Alpha and beta diversity
 The core-metrics command is used to generate a number of alpha and beta diversity outputs. A rarefaction depth of 24860 was used, which results in 1 sample being dropped (and also the negative control)
 
