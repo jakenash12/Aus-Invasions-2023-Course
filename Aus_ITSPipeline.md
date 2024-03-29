@@ -12,12 +12,13 @@ sbatch -o slurm-%j-DataDL.out --partition=shared --account=BIO230020 --export=AL
 
 ### Generates filelist to loop through, filtering to include only ITS sequences
 ```
-ls ${WD_path}/Nash_8732_23101202" | grep "R1_001.fastq.gz" | grep "ITS" | sed 's/_R1_001.fastq.gz//g' > ${WD_path}/filelist
+ls ${WD_path}/Nash_8732_23101202 | grep "R1_001.fastq.gz" | grep "ITS" | sed 's/_R1_001.fastq.gz//g' > ${WD_path}/filelist
 ```
 
 ### Uses PEAR to merge paired reads
 ```
 mkdir ${WD_path}/PEARReads/ && cd ${WD_path}/PEARReads/
+cd mkdir ${WD_path}/PEARReads/ && cd ${WD_path}/PEARReads/
 for i in $(cat ${WD_path}/filelist)
 do
 sbatch -o slurm-%j-PEAR.out --partition=shared --account=BIO230020 --export=ALL -t 2:00:00 -c 1 --wrap="pear \
