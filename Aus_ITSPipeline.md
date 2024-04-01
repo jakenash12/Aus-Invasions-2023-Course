@@ -34,7 +34,7 @@ conda activate ITSxpress
 mkdir ${WD_path}/ITSxpressReads/ && cd ${WD_path}/ITSxpressReads/
 for i in $(cat ${WD_path}/filelist)
 do
-sbatch -o slurm-%j-ITSxpress.out --partition=shared --account=BIO230020 --export=ALL -t 24:00:00 -c 128 --wrap="itsxpress --fastq ${WD_path}/PEARReads/${i}.PEAR.assembled.fastq --single_end --region ITS2 --taxa Fungi \
+sbatch -o slurm-%j-ITSxpress.out --partition=wholenode --account=BIO230020 --export=ALL -t 24:00:00 --wrap="itsxpress --fastq ${WD_path}/PEARReads/${i}.PEAR.assembled.fastq --single_end --region ITS2 --taxa Fungi \
 --log ${WD_path}/ITSxpressReads/${i}.logfile.txt --outfile ${WD_path}/ITSxpressReads/${i}.ITS.fastq.gz --threads 128"
 done
 ```
@@ -45,8 +45,9 @@ The QIIME2 manifest is a tab separated value file that points to the file locati
 printf "%s\t%s\n" "sample-id" "absolute-filepath" > ${WD_path}/QIIMEManifest.tsv
 for i in $(cat ${WD_path}/filelist)
 do
-SampleID=$(echo "$i" | grep -oP 'Mengyi.')
-printf "%s\t%s\n" "${SampleID}" "${WD_path}/ITSxpressReads/${i}.ITS.fastq.gz" >> ${WD_path}/QIIMEManifest.tsv
+Sample=$(echo "$i" | awk -F '_' '{print $1}')
+SampleType=$(echo "$i" | awk -F '_' '{print $2}')
+printf "%s\t%s\n" "${Sample}_${SampleType}" "${WD_path}/ITSxpressReads/${i}.ITS.fastq.gz" >> ${WD_path}/QIIMEManifest.tsv
 done
 ```
 
@@ -150,11 +151,11 @@ Uses a pre-trained taxonomic classifier for the UNITE database of full length IT
 ```
 #!/bin/bash
 #SBATCH -o slurm-%j-sklearn_classify.out
-#SBATCH -c 128
-#SBATCH --partition=shared 
+#SBATCH --partition=wholenode 
+#SBATCH -c 12
 #SBATCH -A BIO230020
 #SBATCH --export=ALL
-#SBATCH -t 6:00:00
+#SBATCH -t 36:00:00
 
 module load biocontainers
 module load qiime2
@@ -167,7 +168,7 @@ qiime feature-classifier classify-sklearn \
   --i-classifier ${WD_path}/unite_ver9_dynamic_all_25.07.2023-Q2-2023.9.qza \
   --i-reads ${WD_path}/ITS2_Dada2_repseqs97.qza \
   --o-classification ${WD_path}/ITS2_Dada2_repseqs97_taxonomy.qza \
-  --p-n-jobs -1
+  --p-n-jobs 12
 ```
 
 ### ExportData
