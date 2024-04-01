@@ -18,13 +18,12 @@ ls ${WD_path}/Nash_8732_23101202 | grep "R1_001.fastq.gz" | grep "ITS" | sed 's/
 ### Uses PEAR to merge paired reads
 ```
 mkdir ${WD_path}/PEARReads/ && cd ${WD_path}/PEARReads/
-cd mkdir ${WD_path}/PEARReads/ && cd ${WD_path}/PEARReads/
 for i in $(cat ${WD_path}/filelist)
 do
 sbatch -o slurm-%j-PEAR.out --partition=shared --account=BIO230020 --export=ALL -t 2:00:00 -c 1 --wrap="pear \
-	-f /anvil/scratch/x-jnash12/Nash_8732_23101202/${i}_R1_001.fastq.gz \
-	-r /anvil/scratch/x-jnash12/Nash_8732_23101202/${i}_R2_001.fastq.gz \
-	-o ${WD_path}/PEARReads/${i}"
+	-f ${WD_path}/Nash_8732_23101202/${i}_R1_001.fastq.gz \
+	-r ${WD_path}/Nash_8732_23101202/${i}_R2_001.fastq.gz \
+	-o ${WD_path}/PEARReads/${i}.PEAR"
 done
 ```
 
@@ -35,7 +34,7 @@ conda activate ITSxpress
 mkdir ${WD_path}/ITSxpressReads/ && cd ${WD_path}/ITSxpressReads/
 for i in $(cat ${WD_path}/filelist)
 do
-sbatch -o slurm-%j-ITSxpress.out --partition=shared --account=BIO230020 --export=ALL -t 24:00:00 -c 128 --wrap="itsxpress --fastq ${WD_path}/PEARReads/${i}.assembled.fastq --single_end --region ITS2 --taxa Fungi \
+sbatch -o slurm-%j-ITSxpress.out --partition=shared --account=BIO230020 --export=ALL -t 24:00:00 -c 128 --wrap="itsxpress --fastq ${WD_path}/PEARReads/${i}.PEAR.assembled.fastq --single_end --region ITS2 --taxa Fungi \
 --log ${WD_path}/ITSxpressReads/${i}.logfile.txt --outfile ${WD_path}/ITSxpressReads/${i}.ITS.fastq.gz --threads 128"
 done
 ```
