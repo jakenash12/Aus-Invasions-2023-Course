@@ -95,7 +95,7 @@ ggplot(PCoA_ITS_aitchison_df, aes(x=X1, y=X2)) +
   geom_point(aes(color=SampleType))
 
 PCoA_ITS_aitchison_df %>%
-  ggplot(aes(x=X3, y=X2)) +
+  ggplot(aes(x=X1, y=X2)) +
   geom_point(aes(color=TreeSpecies, shape=SampleType))
 ```
 
@@ -169,7 +169,7 @@ ANCOM_ITS_SampleType = ancombc(data = PhyloseqITS, assay_name = "counts",
 ```{r, warning=FALSE, message=FALSE}
 SuillOTUS=
   TaxMatITS %>%
-  filter(Genus=="Suillus") %$%
+  filter(Genus=="Phialocephala") %$%
   otu
 
 SuillusAbundance=
