@@ -132,7 +132,7 @@ AlphaDiv_ITS %>%
 
 
 ## Conducts differential abundance testing with ANCOM-BC
-Data is first converted to a phyloseq object because ANCOMBC needs it in that format. Need to work more on this
+Data is first converted to a phyloseq object because ANCOMBC needs it in that format. The dataset is divided into root samples and soil samples and separate tests are run for each subset to look for effect of tree species 
 ```{r, warning=FALSE, message=FALSE}
 OTU_ITS_phyloseq=
   OtuMatITS_rare %>%
@@ -153,14 +153,75 @@ SAMPLES_ITS_phyloseq=
   sample_data(Metadata_16S)
 
 PhyloseqITS <- phyloseq(OTU_ITS_phyloseq, TAX_ITS_phyloseq, SAMPLES_ITS_phyloseq)
-  
-ANCOM_ITS_SampleType = ancombc(data = PhyloseqITS, assay_name = "counts", 
-              tax_level = "Genus", phyloseq = NULL, 
-              formula = "SampleType + TreeSpecies", 
-              group="SampleType", p_adj_method = "holm", prv_cut = 0.10, lib_cut = 1000, 
+
+PhyloseqITS_root=subset_samples(PhyloseqITS, SampleType=="Root")
+ANCOM_ITS_root = ancombc(data = PhyloseqITS_root, assay_name = "counts", 
+              tax_level = "Species", phyloseq = NULL, 
+              formula = "TreeSpecies", 
+              group="TreeSpecies", p_adj_method = "holm", prv_cut = 0.10, lib_cut = 1000, 
               struc_zero = TRUE, neg_lb = TRUE, tol = 1e-5, 
               max_iter = 100, conserve = TRUE, alpha = 0.05, global = TRUE,
               n_cl = 1, verbose = TRUE)
+
+p_thresh=0.05
+
+ANCOM_ITS_root_sig= 
+  ANCOM_ITS_root$res$p_val %>% 
+  as.data.frame %>% 
+  filter(TreeSpeciesPine<p_thresh) %$%
+  taxon
+
+ANCOM_ITS_root_results=
+  ANCOM_ITS_root$res$lfc %>% 
+  as.data.frame %>% 
+  filter(taxon %in% ANCOM_ITS_root_sig) %>%
+  rename("LFC"="TreeSpeciesPine") %>%
+  mutate(Enrichment=ifelse(LFC<0, "Eucalyptus_enriched", "Pine_enriched"))
+
+PhyloseqITS_soil=subset_samples(PhyloseqITS, SampleType=="Soil")
+ANCOM_ITS_soil = ancombc(data = PhyloseqITS_soil, assay_name = "counts", 
+              tax_level = "Species", phyloseq = NULL, 
+              formula = "TreeSpecies", 
+              group="TreeSpecies", p_adj_method = "holm", prv_cut = 0.10, lib_cut = 1000, 
+              struc_zero = TRUE, neg_lb = TRUE, tol = 1e-5, 
+              max_iter = 100, conserve = TRUE, alpha = 0.05, global = TRUE,
+              n_cl = 1, verbose = TRUE)
+
+ANCOM_ITS_soil_sig= 
+  ANCOM_ITS_soil$res$p_val %>% 
+  as.data.frame %>% 
+  filter(TreeSpeciesPine<p_thresh) %$%
+  taxon
+
+ANCOM_ITS_soil_results=
+  ANCOM_ITS_soil$res$lfc %>% 
+  as.data.frame %>% 
+  filter(taxon %in% ANCOM_ITS_soil_sig) %>%
+  rename("LFC"="TreeSpeciesPine") %>%
+  mutate(Enrichment=ifelse(LFC<0, "Eucalyptus_enriched", "Pine_enriched"))
+
+ANCOM_ITS_root_results %>%
+  arrange(LFC) %>%
+  slice(c(1:20, (n() - 19):n())) %>%
+  arrange(desc(LFC)) %>%
+  ggplot(aes(x=reorder(taxon, LFC), y=LFC, fill=Enrichment)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  theme_minimal() +
+  ggtitle("Plant Roots - Eucalyptus vs. Pine - Top 40 enriched taxa") +
+  geom_hline(yintercept=0)
+
+
+ANCOM_ITS_soil_results %>%
+  arrange(LFC) %>%
+  slice(c(1:20, (n() - 19):n())) %>%
+  arrange(desc(LFC)) %>%
+  ggplot(aes(x=reorder(taxon, LFC), y=LFC, fill=Enrichment)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  theme_minimal() +
+  ggtitle("Soils - Eucalyptus vs. Pine - Top 40 enriched taxa") +
+  geom_hline(yintercept=0)
 
 ```
 
@@ -169,7 +230,7 @@ ANCOM_ITS_SampleType = ancombc(data = PhyloseqITS, assay_name = "counts",
 ```{r, warning=FALSE, message=FALSE}
 SuillOTUS=
   TaxMatITS %>%
-  filter(Genus=="Phialocephala") %$%
+  filter(Genus=="Suillus", .$otu %in% colnames(OtuMatITS_rare)) %$%
   otu
 
 SuillusAbundance=
