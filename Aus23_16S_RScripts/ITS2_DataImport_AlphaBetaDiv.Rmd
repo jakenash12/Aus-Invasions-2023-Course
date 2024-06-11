@@ -18,6 +18,7 @@ library(magrittr)
 library(ecodist)
 library(ANCOMBC)
 library(phyloseq)
+library(readxl)
 ```
 
 ## Import taxonomy file and parse taxonomy string into separate columns
@@ -226,7 +227,7 @@ ANCOM_ITS_soil_results %>%
 ```
 
 
-## Plots abundance of Suillus
+## Plots total abundance of all Suillus OTUs
 ```{r, warning=FALSE, message=FALSE}
 SuillOTUS=
   TaxMatITS %>%
@@ -242,6 +243,29 @@ SuillusAbundance=
   left_join(Metadata_ITS)
 
 ggplot(SuillusAbundance, aes(x=SampleType, y=log(Suillus+1), color=TreeSpecies)) +
-  geom_boxplot()
+  geom_boxplot() +
+  geom_point(position=position_dodge(width=0.75),aes(group=TreeSpecies))
+
 ```
 
+## Plots abundance of each Suillus OTU separately
+```{r, warning=FALSE, message=FALSE}
+UpdatedTax=read_excel("../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited.xlsx")
+
+Suillus_OTUs_Abundance=
+  OtuMatITS_rare %>%
+  select(SuillOTUS) %>%
+  mutate(SampleID=rownames(.)) %>%
+  left_join(Metadata_ITS) %>%
+  gather(otu, Abundance, -TreeSpecies, -SampleType, -TreeID, -Plot_Rep, -SampleID, -TreeSpecies_SampleType) %>%
+  left_join(UpdatedTax,by=c("otu"="Feature ID")) %>%
+  mutate(SpeciesOTU=paste(Species, otu, sep="_"))
+
+ggplot(Suillus_OTUs_Abundance, aes(x=SampleType, y=log(Abundance+0.01), color=TreeSpecies)) +
+  geom_boxplot() +
+  geom_point(position=position_dodge(width=0.75),aes(group=TreeSpecies)) +
+  facet_wrap(.~SpeciesOTU) +
+  theme(strip.text.x = element_text(angle = 0, hjust = 0))
+
+
+```
