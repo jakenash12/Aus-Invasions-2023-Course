@@ -13,12 +13,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(vegan)
-library(car)
 library(magrittr)
-library(ecodist)
-library(ANCOMBC)
-library(phyloseq)
-library(readxl)
+library(tibble)
+library(FUNGuildR)
 ```
 
 ## Import taxonomy file and parse taxonomy string into separate columns
@@ -46,67 +43,85 @@ OtuMatITS=
 ```{r, warning=FALSE, message=FALSE}
 Metadata_ITS=
   read_tsv("../Aus23_16S_Metabarcoding/MetabarcodingMetadata.txt") %>%
-  slice(-1) %>%
-  rename("SampleID"=`sample-id`)
+  slice(-1) %>% #remove the comment row 
+  rename("SampleID"=`sample-id`) #rename SampleID column
 ```
 
 ## Calculates sequencing depth per sample, then rarefies to 70218
 Rarefaction curves are generated showing rarefaction point as dotted line. Rarefaction resulted in dropping sample P3-2_Root and the negative control. OTUs that had 0 sequences remaining after rarefaction were removed. Random seed was set to ensure reproducibility
 ```{r}
+#calculates sequencing depth by taking column sums of OTU table
 SeqDepthITS=
   OtuMatITS %>%
   colSums() %>%
   as.data.frame %>%
   set_colnames("n_sequences")
 
+#uses vegan function to generate rarefaction curve dataframe using a step of 500 seqs
 RareCurve_ITs=
   OtuMatITS %>%
   t %>%
   rarecurve(step=500, tidy=TRUE)
 
+#sets rarefaction depth to 70,218 seqs, based on seq depth dataframe
+rare_depth_ITS=70218
+#plots rarefaction curve, drawing a vertical line at the rarefaction depth
 ggplot(RareCurve_ITs, aes(x=Sample, y=Species, group=Site)) +
   geom_line() +
-  geom_vline(xintercept=70218, linetype=2) +
+  geom_vline(xintercept=rare_depth_ITS, linetype=2) +
   ylab("# ASVs") +
   xlab("# Sequences")
 
-set.seed(2023)
+set.seed(2023) #make sure to set the random seed so that rarefaction is reproducible
+
+#uses vegan rarefaction function to rarefy to previously defined rarefaction depth
 OtuMatITS_rare=
   OtuMatITS %>%
   t %>%
   as.data.frame %>%
-  rrarefy(sample=70218) %>%
+  rrarefy(sample=rare_depth_ITS) %>%
   as.data.frame %>%
   select(-which(colSums(.) == 0)) %>%
   filter(rowSums(.) >= 70218)
+
 ```
 
-## Conducts PCoA with Aitchison distance
-PCoA is first plotted with points colored by sample type. Then PCoA is plotted colored by tree species, this time using axes 2 and 3 because axis 3 shows separation by tree species best.
+## Generates an OTU table where replicates from the same tree are pooled
+This is done by taking the rarefied OTU table, then summing together the sequence counts for both replicates from each tree. For the soil samples, this means summing together the north and south plots, and for the root samples this means summing together the 2 PCR technical replicates
 ```{r, warning=FALSE, message=FALSE}
-DistMatITS=vegdist(OtuMatITS_rare, method = "aitchison", pseudocount=1)
-PCoA_ITS_aitchison<- ecodist::pco(DistMatITS)
-PCoA_ITS_aitchison_df=
-  PCoA_ITS_aitchison$vectors %>%
-  as.data.frame %>%
-  cbind(data.frame(SampleID=rownames(.)), .) %>%
-  left_join(Metadata_ITS)
+OtuMatITS_rare_pooled=
+  OtuMatITS_rare %>%
+  mutate(TreeSampleType = gsub("-.", "", rownames(.))) %>% #make a new column with the tree ID and sample type
+  group_by(TreeSampleType) %>% #group dataframe by tree ID and sample type
+  summarise(across(everything(), sum, .names = "{.col}")) %>% #sum together sequence counts for all samples that were from the same tree and sample type
+  column_to_rownames("TreeSampleType") #set rownames to tree ID_sample type
 
-ggplot(PCoA_ITS_aitchison_df, aes(x=X1, y=X2)) +
-  geom_point(aes(color=SampleType))
-
-PCoA_ITS_aitchison_df %>%
-  ggplot(aes(x=X1, y=X2)) +
-  geom_point(aes(color=TreeSpecies, shape=SampleType))
 ```
 
-## Conducts PERMANOVA with SampleType*TreeSpecies
+## Generates relative abundance OTU table versions of the unpooled and pooled rarefied tables
+This is done by dividing each OTU's sequence count by the total sequence count for that sample. This makes it so that all rows sum to 1
+
 ```{r, warning=FALSE, message=FALSE}
-ITS_PERMANOVA_SampleType=adonis2(DistMatITS~SampleType*TreeSpecies,data=PCoA_ITS_aitchison_df)
-ITS_PERMANOVA_SampleType
+OtuMatITS_rare_pooled_rel=
+  OtuMatITS_rare_pooled %>%
+  mutate(across(everything(), ~ . / rowSums(across(everything()))))
+
+OtuMatITS_rare_rel=
+  OtuMatITS_rare %>%
+  mutate(across(everything(), ~ . / rowSums(across(everything()))))
 ```
 
-## Generates alpha diversity dataframe, plots, then ANOVA
+## Generates Aitchison distance matrices
+This is done on both the pooled and unpooled versions of the OTU table, both after rarefaction (but not on the relativized versions of the OTU tables).
+
+A pseudocount value of 1 is used for the log transform
+```{r, warning=FALSE, message=FALSE}
+Aitchison_unpooled_ITS=vegdist(OtuMatITS_rare, method = "aitchison", pseudocount=1)
+
+Aitchison_pooled_ITS=vegdist(OtuMatITS_rare_pooled, method = "aitchison", pseudocount=1)
+```
+
+## Generates alpha diversity dataframe
 ```{r, warning=FALSE, message=FALSE}
 AlphaDiv_ITS=
   data.frame(Shannon=diversity(OtuMatITS_rare, index="shannon"),
@@ -116,156 +131,26 @@ AlphaDiv_ITS=
   mutate(SampleID=rownames(.)) %>%
   left_join(Metadata_ITS)
 
-ggplot(AlphaDiv_ITS, aes(x=SampleType, y=Richness, color=TreeSpecies)) +
-  geom_boxplot()
-
-ggplot(AlphaDiv_ITS, aes(x=SampleType, y=Shannon, color=TreeSpecies)) +
-  geom_boxplot()
-
-AlphaDiv_ITS %>%
-  lm(Richness~SampleType*TreeSpecies,.) %>%
-  Anova
-
-AlphaDiv_ITS %>%
-  lm(Shannon~SampleType*TreeSpecies,.) %>%
-  Anova
 ```
 
-
-## Conducts differential abundance testing with ANCOM-BC
-Data is first converted to a phyloseq object because ANCOMBC needs it in that format. The dataset is divided into root samples and soil samples and separate tests are run for each subset to look for effect of tree species 
+## Generates guild summaries based on fungal traits guild assignments
+Need to finish this...
+Will merge this with the alpha diversity dataframe and export it as a summary table
 ```{r, warning=FALSE, message=FALSE}
-OTU_ITS_phyloseq=
-  OtuMatITS_rare %>%
-  as.matrix %>%
-  otu_table(taxa_are_rows = FALSE)
 
-TAX_ITS_phyloseq=
-  TaxMatITS %>%
-  filter(otu %in% colnames(OtuMatITS_rare)) %>%
-  column_to_rownames("otu") %>%
-  as.matrix %>%
-  tax_table
-  
-SAMPLES_ITS_phyloseq=
-  Metadata_ITS %>%
-  filter(SampleID %in% rownames(OTU_ITS_phyloseq)) %>%
-  column_to_rownames("SampleID") %>%
-  sample_data(Metadata_16S)
-
-PhyloseqITS <- phyloseq(OTU_ITS_phyloseq, TAX_ITS_phyloseq, SAMPLES_ITS_phyloseq)
-
-PhyloseqITS_root=subset_samples(PhyloseqITS, SampleType=="Root")
-ANCOM_ITS_root = ancombc(data = PhyloseqITS_root, assay_name = "counts", 
-              tax_level = "Species", phyloseq = NULL, 
-              formula = "TreeSpecies", 
-              group="TreeSpecies", p_adj_method = "holm", prv_cut = 0.10, lib_cut = 1000, 
-              struc_zero = TRUE, neg_lb = TRUE, tol = 1e-5, 
-              max_iter = 100, conserve = TRUE, alpha = 0.05, global = TRUE,
-              n_cl = 1, verbose = TRUE)
-
-p_thresh=0.05
-
-ANCOM_ITS_root_sig= 
-  ANCOM_ITS_root$res$p_val %>% 
-  as.data.frame %>% 
-  filter(TreeSpeciesPine<p_thresh) %$%
-  taxon
-
-ANCOM_ITS_root_results=
-  ANCOM_ITS_root$res$lfc %>% 
-  as.data.frame %>% 
-  filter(taxon %in% ANCOM_ITS_root_sig) %>%
-  rename("LFC"="TreeSpeciesPine") %>%
-  mutate(Enrichment=ifelse(LFC<0, "Eucalyptus_enriched", "Pine_enriched"))
-
-PhyloseqITS_soil=subset_samples(PhyloseqITS, SampleType=="Soil")
-ANCOM_ITS_soil = ancombc(data = PhyloseqITS_soil, assay_name = "counts", 
-              tax_level = "Species", phyloseq = NULL, 
-              formula = "TreeSpecies", 
-              group="TreeSpecies", p_adj_method = "holm", prv_cut = 0.10, lib_cut = 1000, 
-              struc_zero = TRUE, neg_lb = TRUE, tol = 1e-5, 
-              max_iter = 100, conserve = TRUE, alpha = 0.05, global = TRUE,
-              n_cl = 1, verbose = TRUE)
-
-ANCOM_ITS_soil_sig= 
-  ANCOM_ITS_soil$res$p_val %>% 
-  as.data.frame %>% 
-  filter(TreeSpeciesPine<p_thresh) %$%
-  taxon
-
-ANCOM_ITS_soil_results=
-  ANCOM_ITS_soil$res$lfc %>% 
-  as.data.frame %>% 
-  filter(taxon %in% ANCOM_ITS_soil_sig) %>%
-  rename("LFC"="TreeSpeciesPine") %>%
-  mutate(Enrichment=ifelse(LFC<0, "Eucalyptus_enriched", "Pine_enriched"))
-
-ANCOM_ITS_root_results %>%
-  arrange(LFC) %>%
-  slice(c(1:20, (n() - 19):n())) %>%
-  arrange(desc(LFC)) %>%
-  ggplot(aes(x=reorder(taxon, LFC), y=LFC, fill=Enrichment)) +
-  geom_bar(stat="identity") +
-  coord_flip() +
-  theme_minimal() +
-  ggtitle("Plant Roots - Eucalyptus vs. Pine - Top 40 enriched taxa") +
-  geom_hline(yintercept=0)
-
-
-ANCOM_ITS_soil_results %>%
-  arrange(LFC) %>%
-  slice(c(1:20, (n() - 19):n())) %>%
-  arrange(desc(LFC)) %>%
-  ggplot(aes(x=reorder(taxon, LFC), y=LFC, fill=Enrichment)) +
-  geom_bar(stat="identity") +
-  coord_flip() +
-  theme_minimal() +
-  ggtitle("Soils - Eucalyptus vs. Pine - Top 40 enriched taxa") +
-  geom_hline(yintercept=0)
 
 ```
 
-
-## Plots total abundance of all Suillus OTUs
+## Saving/exporting files as csv's
+OTU tables and distance matrices are saved as csv's so that they can easily be used in other analyses. 
 ```{r, warning=FALSE, message=FALSE}
-SuillOTUS=
-  TaxMatITS %>%
-  filter(Genus=="Suillus", .$otu %in% colnames(OtuMatITS_rare)) %$%
-  otu
+filepath="../Aus23_R_outputs/ITS/"
 
-SuillusAbundance=
-  OtuMatITS_rare %>%
-  select(SuillOTUS) %>%
-  mutate(Suillus=rowSums(.)) %>%
-  select(Suillus) %>%
-  mutate(SampleID=rownames(.)) %>%
-  left_join(Metadata_ITS)
+write.csv(OtuMatITS_rare, paste(filepath, "OtuMatITS_rare.csv", sep=""))
+write.csv(OtuMatITS_rare_rel, paste(filepath, "OtuMatITS_rare_rel.csv", sep=""))
+write.csv(OtuMatITS_rare_pooled, paste(filepath, "OtuMatITS_rare_pooled.csv", sep=""))
+write.csv(OtuMatITS_rare_pooled_rel, paste(filepath, "OtuMatITS_rare_pooled_rel.csv", sep=""))
 
-ggplot(SuillusAbundance, aes(x=SampleType, y=log(Suillus+1), color=TreeSpecies)) +
-  geom_boxplot() +
-  geom_point(position=position_dodge(width=0.75),aes(group=TreeSpecies))
-
-```
-
-## Plots abundance of each Suillus OTU separately
-```{r, warning=FALSE, message=FALSE}
-UpdatedTax=read_excel("../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited.xlsx")
-
-Suillus_OTUs_Abundance=
-  OtuMatITS_rare %>%
-  select(SuillOTUS) %>%
-  mutate(SampleID=rownames(.)) %>%
-  left_join(Metadata_ITS) %>%
-  gather(otu, Abundance, -TreeSpecies, -SampleType, -TreeID, -Plot_Rep, -SampleID, -TreeSpecies_SampleType) %>%
-  left_join(UpdatedTax,by=c("otu"="Feature ID")) %>%
-  mutate(SpeciesOTU=paste(Species, otu, sep="_"))
-
-ggplot(Suillus_OTUs_Abundance, aes(x=SampleType, y=log(Abundance+0.01), color=TreeSpecies)) +
-  geom_boxplot() +
-  geom_point(position=position_dodge(width=0.75),aes(group=TreeSpecies)) +
-  facet_wrap(.~SpeciesOTU) +
-  theme(strip.text.x = element_text(angle = 0, hjust = 0))
-
-
+write.csv(as.matrix(Aitchison_unpooled_ITS), paste(filepath, "Aitchison_unpooled_ITS.csv", sep=""))
+write.csv(as.matrix(Aitchison_pooled_ITS), paste(filepath, "Aitchison_pooled_ITS.csv", sep=""))
 ```
