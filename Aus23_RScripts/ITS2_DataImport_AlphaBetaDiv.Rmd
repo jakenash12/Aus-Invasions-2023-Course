@@ -144,7 +144,7 @@ Will merge this with the alpha diversity dataframe and export it as a summary ta
 ## Saving/exporting files as csv's
 OTU tables and distance matrices are saved as csv's so that they can easily be used in other analyses. 
 ```{r, warning=FALSE, message=FALSE}
-filepath="../Aus23_R_outputs/ITS/"
+filepath="../Aus23_ITS_Metabarcoding/"
 
 write.csv(OtuMatITS_rare, paste(filepath, "OtuMatITS_rare.csv", sep=""))
 write.csv(OtuMatITS_rare_rel, paste(filepath, "OtuMatITS_rare_rel.csv", sep=""))
