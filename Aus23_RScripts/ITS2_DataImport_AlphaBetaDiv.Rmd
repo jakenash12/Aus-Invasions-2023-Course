@@ -15,7 +15,6 @@ library(tidyverse)
 library(vegan)
 library(magrittr)
 library(tibble)
-library(FUNGuildR)
 ```
 
 ## Import taxonomy file and parse taxonomy string into separate columns
