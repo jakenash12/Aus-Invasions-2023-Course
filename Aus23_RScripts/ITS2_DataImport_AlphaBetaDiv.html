@@ -13,7 +13,7 @@
 
 <meta name="date" content="2024-04-01" />
 
-<title>ITS_DataImport_AlphaBetaDiv</title>
+<title>ITS_DataImport_Transformations_Export</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -356,7 +356,7 @@ pre code {
 
 
 
-<h1 class="title toc-ignore">ITS_DataImport_AlphaBetaDiv</h1>
+<h1 class="title toc-ignore">ITS_DataImport_Transformations_Export</h1>
 <h4 class="author">Jake Nash</h4>
 <h4 class="date">2024-04-01</h4>
 
@@ -368,8 +368,7 @@ pre code {
 <pre class="r"><code>library(tidyverse)
 library(vegan)
 library(magrittr)
-library(tibble)
-library(FUNGuildR)</code></pre>
+library(tibble)</code></pre>
 </div>
 <div id="import-taxonomy-file-and-parse-taxonomy-string-into-separate-columns" class="section level2">
 <h2>Import taxonomy file and parse taxonomy string into separate
@@ -464,13 +463,31 @@ pooled rarefied tables</h2>
 <p>This is done by dividing each OTU’s sequence count by the total
 sequence count for that sample. This makes it so that all rows sum to
 1</p>
+<p>This is done for pooled and unpooled tables, and for rarefied and
+unrarefied tables</p>
 <pre class="r"><code>OtuMatITS_rare_pooled_rel=
   OtuMatITS_rare_pooled %&gt;%
-  mutate(across(everything(), ~ . / rowSums(across(everything()))))
+  sweep(1, rowSums(.), FUN = &quot;/&quot;) 
 
 OtuMatITS_rare_rel=
   OtuMatITS_rare %&gt;%
-  mutate(across(everything(), ~ . / rowSums(across(everything()))))</code></pre>
+  sweep(1, rowSums(.), FUN = &quot;/&quot;) 
+
+OtuMatITS_rel=
+  OtuMatITS %&gt;%
+  t %&gt;%
+  as.data.frame %&gt;% 
+  sweep(1, rowSums(.), FUN = &quot;/&quot;)
+
+OtuMatITS_pooled_rel=
+  OtuMatITS %&gt;%
+  t %&gt;%
+  as.data.frame %&gt;%
+  mutate(TreeSampleType = gsub(&quot;-.&quot;, &quot;&quot;, rownames(.))) %&gt;% #make a new column with the tree ID and sample type
+  group_by(TreeSampleType) %&gt;% #group dataframe by tree ID and sample type
+  summarise(across(everything(), sum, .names = &quot;{.col}&quot;)) %&gt;% #sum together sequence counts for all samples that were from the same tree and sample type
+  column_to_rownames(&quot;TreeSampleType&quot;) %&gt;% #set rownames to tree ID_sample type
+  sweep(1, rowSums(.), FUN = &quot;/&quot;)</code></pre>
 </div>
 <div id="generates-aitchison-distance-matrices" class="section level2">
 <h2>Generates Aitchison distance matrices</h2>
@@ -478,17 +495,26 @@ OtuMatITS_rare_rel=
 table, both after rarefaction (but not on the relativized versions of
 the OTU tables).</p>
 <p>A pseudocount value of 1 is used for the log transform</p>
-<pre class="r"><code>Aitchison_unpooled_ITS=vegdist(OtuMatITS_rare, method = &quot;aitchison&quot;, pseudocount=1)
+<pre class="r"><code>Aitchison_unpooled_ITS=vegdist(OtuMatITS_rel, method = &quot;aitchison&quot;, pseudocount=1)
 
-Aitchison_pooled_ITS=vegdist(OtuMatITS_rare_pooled, method = &quot;aitchison&quot;, pseudocount=1)</code></pre>
+Aitchison_pooled_ITS=vegdist(OtuMatITS_pooled_rel, method = &quot;aitchison&quot;, pseudocount=1)</code></pre>
 </div>
-<div id="generates-alpha-diversity-dataframe" class="section level2">
-<h2>Generates alpha diversity dataframe</h2>
+<div id="generates-alpha-diversity-dataframe-for-pooled-and-unpooled-rarefied-otu-tables" class="section level2">
+<h2>Generates alpha diversity dataframe for pooled and unpooled rarefied
+OTU tables</h2>
 <pre class="r"><code>AlphaDiv_ITS=
   data.frame(Shannon=diversity(OtuMatITS_rare, index=&quot;shannon&quot;),
              Simpson=diversity(OtuMatITS_rare, index=&quot;simpson&quot;),
              Invsimpson=diversity(OtuMatITS_rare, index=&quot;invsimpson&quot;),
              Richness=specnumber(OtuMatITS_rare)) %&gt;%
+  mutate(SampleID=rownames(.)) %&gt;%
+  left_join(Metadata_ITS)
+
+AlphaDiv_pooled_ITS=
+  data.frame(Shannon=diversity(OtuMatITS_rare_pooled, index=&quot;shannon&quot;),
+             Simpson=diversity(OtuMatITS_rare_pooled, index=&quot;simpson&quot;),
+             Invsimpson=diversity(OtuMatITS_rare_pooled, index=&quot;invsimpson&quot;),
+             Richness=specnumber(OtuMatITS_rare_pooled)) %&gt;%
   mutate(SampleID=rownames(.)) %&gt;%
   left_join(Metadata_ITS)</code></pre>
 </div>
@@ -502,12 +528,15 @@ dataframe and export it as a summary table</p>
 <h2>Saving/exporting files as csv’s</h2>
 <p>OTU tables and distance matrices are saved as csv’s so that they can
 easily be used in other analyses.</p>
-<pre class="r"><code>filepath=&quot;../Aus23_ITS_Metabarcoding/&quot;
+<pre class="r"><code>filepath=&quot;../Aus23_ITS_Metabarcoding/OTUTables/&quot;
 
 write.csv(OtuMatITS_rare, paste(filepath, &quot;OtuMatITS_rare.csv&quot;, sep=&quot;&quot;))
 write.csv(OtuMatITS_rare_rel, paste(filepath, &quot;OtuMatITS_rare_rel.csv&quot;, sep=&quot;&quot;))
 write.csv(OtuMatITS_rare_pooled, paste(filepath, &quot;OtuMatITS_rare_pooled.csv&quot;, sep=&quot;&quot;))
 write.csv(OtuMatITS_rare_pooled_rel, paste(filepath, &quot;OtuMatITS_rare_pooled_rel.csv&quot;, sep=&quot;&quot;))
+
+write.csv(OtuMatITS_pooled_rel, paste(filepath, &quot;OtuMatITS_pooled_rel.csv&quot;, sep=&quot;&quot;))
+write.csv(OtuMatITS_rel, paste(filepath, &quot;OtuMatITS_rel.csv&quot;, sep=&quot;&quot;))
 
 write.csv(as.matrix(Aitchison_unpooled_ITS), paste(filepath, &quot;Aitchison_unpooled_ITS.csv&quot;, sep=&quot;&quot;))
 write.csv(as.matrix(Aitchison_pooled_ITS), paste(filepath, &quot;Aitchison_pooled_ITS.csv&quot;, sep=&quot;&quot;))</code></pre>

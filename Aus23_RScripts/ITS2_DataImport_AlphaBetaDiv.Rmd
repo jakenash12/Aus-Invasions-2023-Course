@@ -1,5 +1,5 @@
 ---
-title: "ITS_DataImport_AlphaBetaDiv"
+title: "ITS_DataImport_Transformations_Export"
 author: "Jake Nash"
 date: "2024-04-01"
 output: html_document
@@ -87,6 +87,7 @@ OtuMatITS_rare=
 
 ## Generates an OTU table where replicates from the same tree are pooled
 This is done by taking the rarefied OTU table, then summing together the sequence counts for both replicates from each tree. For the soil samples, this means summing together the north and south plots, and for the root samples this means summing together the 2 PCR technical replicates
+
 ```{r, warning=FALSE, message=FALSE}
 OtuMatITS_rare_pooled=
   OtuMatITS_rare %>%
@@ -100,14 +101,32 @@ OtuMatITS_rare_pooled=
 ## Generates relative abundance OTU table versions of the unpooled and pooled rarefied tables
 This is done by dividing each OTU's sequence count by the total sequence count for that sample. This makes it so that all rows sum to 1
 
+This is done for pooled and unpooled tables, and for rarefied and unrarefied tables
+
 ```{r, warning=FALSE, message=FALSE}
 OtuMatITS_rare_pooled_rel=
   OtuMatITS_rare_pooled %>%
-  mutate(across(everything(), ~ . / rowSums(across(everything()))))
+  sweep(1, rowSums(.), FUN = "/") 
 
 OtuMatITS_rare_rel=
   OtuMatITS_rare %>%
-  mutate(across(everything(), ~ . / rowSums(across(everything()))))
+  sweep(1, rowSums(.), FUN = "/") 
+
+OtuMatITS_rel=
+  OtuMatITS %>%
+  t %>%
+  as.data.frame %>% 
+  sweep(1, rowSums(.), FUN = "/")
+
+OtuMatITS_pooled_rel=
+  OtuMatITS %>%
+  t %>%
+  as.data.frame %>%
+  mutate(TreeSampleType = gsub("-.", "", rownames(.))) %>% #make a new column with the tree ID and sample type
+  group_by(TreeSampleType) %>% #group dataframe by tree ID and sample type
+  summarise(across(everything(), sum, .names = "{.col}")) %>% #sum together sequence counts for all samples that were from the same tree and sample type
+  column_to_rownames("TreeSampleType") %>% #set rownames to tree ID_sample type
+  sweep(1, rowSums(.), FUN = "/")
 ```
 
 ## Generates Aitchison distance matrices
@@ -115,18 +134,26 @@ This is done on both the pooled and unpooled versions of the OTU table, both aft
 
 A pseudocount value of 1 is used for the log transform
 ```{r, warning=FALSE, message=FALSE}
-Aitchison_unpooled_ITS=vegdist(OtuMatITS_rare, method = "aitchison", pseudocount=1)
+Aitchison_unpooled_ITS=vegdist(OtuMatITS_rel, method = "aitchison", pseudocount=1)
 
-Aitchison_pooled_ITS=vegdist(OtuMatITS_rare_pooled, method = "aitchison", pseudocount=1)
+Aitchison_pooled_ITS=vegdist(OtuMatITS_pooled_rel, method = "aitchison", pseudocount=1)
 ```
 
-## Generates alpha diversity dataframe
+## Generates alpha diversity dataframe for pooled and unpooled rarefied OTU tables
 ```{r, warning=FALSE, message=FALSE}
 AlphaDiv_ITS=
   data.frame(Shannon=diversity(OtuMatITS_rare, index="shannon"),
              Simpson=diversity(OtuMatITS_rare, index="simpson"),
              Invsimpson=diversity(OtuMatITS_rare, index="invsimpson"),
              Richness=specnumber(OtuMatITS_rare)) %>%
+  mutate(SampleID=rownames(.)) %>%
+  left_join(Metadata_ITS)
+
+AlphaDiv_pooled_ITS=
+  data.frame(Shannon=diversity(OtuMatITS_rare_pooled, index="shannon"),
+             Simpson=diversity(OtuMatITS_rare_pooled, index="simpson"),
+             Invsimpson=diversity(OtuMatITS_rare_pooled, index="invsimpson"),
+             Richness=specnumber(OtuMatITS_rare_pooled)) %>%
   mutate(SampleID=rownames(.)) %>%
   left_join(Metadata_ITS)
 
@@ -143,12 +170,15 @@ Will merge this with the alpha diversity dataframe and export it as a summary ta
 ## Saving/exporting files as csv's
 OTU tables and distance matrices are saved as csv's so that they can easily be used in other analyses. 
 ```{r, warning=FALSE, message=FALSE}
-filepath="../Aus23_ITS_Metabarcoding/"
+filepath="../Aus23_ITS_Metabarcoding/OTUTables/"
 
 write.csv(OtuMatITS_rare, paste(filepath, "OtuMatITS_rare.csv", sep=""))
 write.csv(OtuMatITS_rare_rel, paste(filepath, "OtuMatITS_rare_rel.csv", sep=""))
 write.csv(OtuMatITS_rare_pooled, paste(filepath, "OtuMatITS_rare_pooled.csv", sep=""))
 write.csv(OtuMatITS_rare_pooled_rel, paste(filepath, "OtuMatITS_rare_pooled_rel.csv", sep=""))
+
+write.csv(OtuMatITS_pooled_rel, paste(filepath, "OtuMatITS_pooled_rel.csv", sep=""))
+write.csv(OtuMatITS_rel, paste(filepath, "OtuMatITS_rel.csv", sep=""))
 
 write.csv(as.matrix(Aitchison_unpooled_ITS), paste(filepath, "Aitchison_unpooled_ITS.csv", sep=""))
 write.csv(as.matrix(Aitchison_pooled_ITS), paste(filepath, "Aitchison_pooled_ITS.csv", sep=""))
