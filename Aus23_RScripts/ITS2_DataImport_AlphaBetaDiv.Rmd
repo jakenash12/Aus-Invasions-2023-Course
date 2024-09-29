@@ -187,7 +187,7 @@ ITS_guild_richness=
              primary_lifestyle=="root_endophyte" ~ "Endo_richness",
              primary_lifestyle=="plant_pathogen" ~ "Path_richness",
              str_detect(primary_lifestyle, "saprotroph") ~ "Sap_richness",
-             .default="Other_abund")) %>%
+             .default="Other_richness")) %>%
   select(-primary_lifestyle, -otu) %>%
   group_by(guild_edited) %>% 
   summarise(across(everything(), sum, na.rm = TRUE)) %>% 
@@ -210,7 +210,7 @@ ITS_guild_richness_pooled=
              primary_lifestyle=="root_endophyte" ~ "Endo_richness",
              primary_lifestyle=="plant_pathogen" ~ "Path_richness",
              str_detect(primary_lifestyle, "saprotroph") ~ "Sap_richness",
-             .default="Other_abund")) %>%
+             .default="Other_richness")) %>%
   select(-primary_lifestyle, -otu) %>%
   group_by(guild_edited) %>% 
   summarise(across(everything(), sum, na.rm = TRUE)) %>% 
