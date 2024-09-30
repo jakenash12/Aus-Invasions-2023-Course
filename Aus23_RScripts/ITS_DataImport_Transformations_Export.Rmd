@@ -15,23 +15,14 @@ library(tidyverse)
 library(vegan)
 library(magrittr)
 library(tibble)
+library(readxl)
 ```
 
-## Import taxonomy file and parse taxonomy string into separate columns
+## Import guild file
 ```{r, warning=FALSE, message=FALSE}
-extract_text <- function(x) {
-  sub(".+__", "", x)
-}
-
-TaxMatITS=
-  read_tsv("../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy.tsv") %>%
-  rename("otu"="Feature ID") %>%
-  select(-Confidence) %>%
-  separate_wider_delim(too_few="align_start", cols = Taxon, delim = ";", names = c("Kingdom", "Phylum","Class", "Order","Family","Genus","Species", "SH")) %>%
-  mutate(across(!contains("otu"), ~extract_text(.)))
 
 TaxITS_funguild=
-  read.delim("../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited_FunT_FunG.tsv") %>%
+  read.delim("../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited_FunT_FunG.tsv") %>% 
   select(-c(Sequence, Kingdom, NeedToCheck, HaveChecked, Edited, Species, SpeciesHypothesis, Confidence)) %>%
   rename("otu"="Feature.ID")
 ```

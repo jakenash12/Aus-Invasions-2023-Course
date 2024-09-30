@@ -368,24 +368,13 @@ pre code {
 <pre class="r"><code>library(tidyverse)
 library(vegan)
 library(magrittr)
-library(tibble)</code></pre>
+library(tibble)
+library(readxl)</code></pre>
 </div>
-<div id="import-taxonomy-file-and-parse-taxonomy-string-into-separate-columns" class="section level2">
-<h2>Import taxonomy file and parse taxonomy string into separate
-columns</h2>
-<pre class="r"><code>extract_text &lt;- function(x) {
-  sub(&quot;.+__&quot;, &quot;&quot;, x)
-}
-
-TaxMatITS=
-  read_tsv(&quot;../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy.tsv&quot;) %&gt;%
-  rename(&quot;otu&quot;=&quot;Feature ID&quot;) %&gt;%
-  select(-Confidence) %&gt;%
-  separate_wider_delim(too_few=&quot;align_start&quot;, cols = Taxon, delim = &quot;;&quot;, names = c(&quot;Kingdom&quot;, &quot;Phylum&quot;,&quot;Class&quot;, &quot;Order&quot;,&quot;Family&quot;,&quot;Genus&quot;,&quot;Species&quot;, &quot;SH&quot;)) %&gt;%
-  mutate(across(!contains(&quot;otu&quot;), ~extract_text(.)))
-
-TaxITS_funguild=
-  read.delim(&quot;../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited_FunT_FunG.tsv&quot;) %&gt;%
+<div id="import-guild-file" class="section level2">
+<h2>Import guild file</h2>
+<pre class="r"><code>TaxITS_funguild=
+  read.delim(&quot;../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited_FunT_FunG.tsv&quot;) %&gt;% 
   select(-c(Sequence, Kingdom, NeedToCheck, HaveChecked, Edited, Species, SpeciesHypothesis, Confidence)) %&gt;%
   rename(&quot;otu&quot;=&quot;Feature.ID&quot;)</code></pre>
 </div>
