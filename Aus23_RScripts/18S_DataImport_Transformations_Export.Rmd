@@ -1,0 +1,170 @@
+---
+title: "18S_DataImport_Transformations_Export"
+output: html_document
+date: "2024-10-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Set WD
+```{r}
+setwd("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding")
+```
+
+
+#Load Required Packages
+```{r}
+library(tidyverse)
+library(vegan)
+library(magrittr)
+library(tibble)
+library(readxl)
+```
+
+#Import taxonomy file
+```{r}
+Tax18S = read.csv("AMF_Taxonomy_FixedFormat.csv") %>%
+  rename("Feature.ID"="#OTU ID")
+```
+
+#Import ASV table
+```{r}
+OtuMat18S = read_tsv("AMF_FeatureTable.tsv") %>%
+  column_to_rownames("#OTU ID")
+```
+
+#Import metadata
+```{r}
+Metadata_18S=
+  read_tsv("MetabarcodingMetadata.txt") %>%
+  rename("sample-id"="SampleID") %>% #rename SampleID column
+  mutate(TreeSampleType = gsub("-.", "", SampleID)) #generate new column with Tree ID and sample type concatenated
+
+Metadata_18S_pooled=
+  Metadata_ITS %>%
+  distinct(TreeSampleType, .keep_all = TRUE)
+```
+
+#Calculates sequencing depth per sample, then rarefies to 2053
+#Rarefaction curves are generated showing rarefaction point as dotted line. Rarefaction resulted in dropping samples P6-N_Soil, E1-2_Root, E2-S_Soil and the negative control. OTUs that had 0 sequences remaining after rarefaction were removed. Random seed was set to ensure reproducibility
+```{r}
+#calculates sequencing depth by taking column sums of OTU table
+SeqDepth18S=
+  OtuMat18S %>%
+  colSums() %>%
+  as.data.frame %>%
+  set_colnames("n_sequences")
+
+#uses vegan function to generate rarefaction curve dataframe using a step of 50 seqs
+RareCurve_18S=
+  OtuMat18S %>%
+  t %>%
+  rarecurve(step=50, tidy=TRUE)
+
+#sets rarefaction depth to 2053 seqs, based on seq depth dataframe
+rare_depth_18S=2053
+#plots rarefaction curve, drawing a vertical line at the rarefaction depth
+ggplot(RareCurve_18S, aes(x=Sample, y=Species, group=Site)) +
+  geom_line() +
+  geom_vline(xintercept=rare_depth_18S, linetype=2) +
+  ylab("# ASVs") +
+  xlab("# Sequences")
+
+set.seed(2023) #make sure to set the random seed so that rarefaction is reproducible
+
+#uses vegan rarefaction function to rarefy to previously defined rarefaction depth
+OtuMat18S_rare=
+  OtuMat18S %>%
+  t %>%
+  as.data.frame %>%
+  rrarefy(sample=rare_depth_18S) %>%
+  as.data.frame %>%
+  dplyr::select(-which(colSums(.) == 0)) %>%
+  filter(rowSums(.) >= 2053)
+```
+
+#Generates OTU table where replicates from the same tree are pooled
+#This is done by taking the rarefied OTU table, then summing together the sequence counts for both replicates from each tree. For the soil samples, this means summing together the north and south plots, and for the root samples this means summing together the 2 PCR technical replicates
+```{r}
+OtuMat18S_rare_pooled=
+  OtuMat18S_rare %>%
+  mutate(TreeSampleType = gsub("-.", "", rownames(.))) %>% #make a new column with the tree ID and sample type
+  group_by(TreeSampleType) %>% #group dataframe by tree ID and sample type
+  summarise(across(everything(), sum, .names = "{.col}")) %>% #sum together sequence counts for all samples that were from the same tree and sample type
+  column_to_rownames("TreeSampleType") #set rownames to tree ID_sample type
+```
+
+#Generates relative abundance OTU table versions of the unpooled and poole rarefied tables
+#This is done by dividing each OTU’s sequence count by the total sequence count for that sample. This makes it so that all rows sum to 1
+This is done for pooled and unpooled tables, and for rarefied and unrarefied tables
+```{r}
+OtuMat18S_rare_pooled_rel=
+  OtuMat18S_rare_pooled %>%
+  sweep(1, rowSums(.), FUN = "/") 
+
+OtuMat18S_rare_rel=
+  OtuMat18S_rare %>%
+  sweep(1, rowSums(.), FUN = "/") 
+
+OtuMat18S_rel=
+  OtuMat18S %>%
+  t %>%
+  as.data.frame %>% 
+  sweep(1, rowSums(.), FUN = "/")
+
+OtuMat18S_pooled_rel=
+  OtuMat18S %>%
+  t %>%
+  as.data.frame %>%
+  mutate(TreeSampleType = gsub("-.", "", rownames(.))) %>% #make a new column with the tree ID and sample type
+  group_by(TreeSampleType) %>% #group dataframe by tree ID and sample type
+  summarise(across(everything(), sum, .names = "{.col}")) %>% #sum together sequence counts for all samples that were from the same tree and sample type
+  column_to_rownames("TreeSampleType") %>% #set rownames to tree ID_sample type
+  sweep(1, rowSums(.), FUN = "/")
+```
+
+#Generates Aitchison distance matrices
+#This is done on both the pooled and unpooled versions of the OTU table, both after rarefaction (but not on the relativized versions of the OTU tables).
+A pseudocount value of 1 is used for the log transform
+```{r}
+Aitchison_unpooled_18S=vegdist(OtuMat18S_rel, method = "aitchison", pseudocount=1)
+
+Aitchison_pooled_18S=vegdist(OtuMat18S_pooled_rel, method = "aitchison", pseudocount=1)
+```
+
+#Generates alpha diversity dataframe for pooled and unpooled rarefied OTU tables
+```{r}
+AlphaDiv_18S=
+  data.frame(Shannon=diversity(OtuMat18S_rare, index="shannon"),
+             Simpson=diversity(OtuMat18S_rare, index="simpson"),
+             Invsimpson=diversity(OtuMat18S_rare, index="invsimpson"),
+             Richness=specnumber(OtuMat18S_rare)) %>%
+  mutate(SampleID=rownames(.)) %>%
+  left_join(Metadata_18S)
+
+AlphaDiv_pooled_18S=
+  data.frame(Shannon=diversity(OtuMat18S_rare_pooled, index="shannon"),
+             Simpson=diversity(OtuMat18S_rare_pooled, index="simpson"),
+             Invsimpson=diversity(OtuMat18S_rare_pooled, index="invsimpson"),
+             Richness=specnumber(OtuMat18S_rare_pooled)) %>%
+  mutate(TreeSampleType=rownames(.)) %>%
+  left_join(Metadata_18S_pooled)
+```
+
+#Saving/exporting files as CSVs
+```{r}
+filepath="../Aus23_18S_Metabarcoding/OTUTables/"
+
+write.csv(OtuMat18S_rare, paste(filepath, "OtuMat18S_rare.csv", sep=""))
+write.csv(OtuMat18S_rare_rel, paste(filepath, "OtuMat18S_rare_rel.csv", sep=""))
+write.csv(OtuMat18S_rare_pooled, paste(filepath, "OtuMat18S_rare_pooled.csv", sep=""))
+write.csv(OtuMat18S_rare_pooled_rel, paste(filepath, "OtuMat18S_rare_pooled_rel.csv", sep=""))
+
+write.csv(OtuMat18S_pooled_rel, paste(filepath, "OtuMat18S_pooled_rel.csv", sep=""))
+write.csv(OtuMat18S_rel, paste(filepath, "OtuMat18S_rel.csv", sep=""))
+
+write.csv(as.matrix(Aitchison_unpooled_18S), paste(filepath, "Aitchison_unpooled_18S.csv", sep=""))
+write.csv(as.matrix(Aitchison_pooled_18S), paste(filepath, "Aitchison_pooled_18S.csv", sep=""))
+```
+
