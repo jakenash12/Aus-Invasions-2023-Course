@@ -1,0 +1,292 @@
+---
+title: "ITS_DataImport_Transformations_Export"
+author: "Jake Nash"
+date: "2024-04-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Required Packages
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(vegan)
+library(magrittr)
+library(tibble)
+library(readxl)
+```
+
+## Import guild file
+```{r, warning=FALSE, message=FALSE}
+
+TaxITS_funguild=
+  read.delim("../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited_FunT_FunG.tsv") %>% 
+  select(-c(Sequence, Kingdom, NeedToCheck, HaveChecked, Edited, Species, SpeciesHypothesis, Confidence)) %>%
+  rename("otu"="Feature.ID")
+```
+
+## Import ASV table
+```{r, warning=FALSE, message=FALSE}
+OtuMatITS=
+  read_tsv("../Aus23_ITS_Metabarcoding/ITS2_OTUTable_97.tsv", skip=1) %>%
+  column_to_rownames("#OTU ID")
+```
+
+## Import Metadata
+Also creates a version of the metadata that can be used for the pooled data (i.e. each tree ID has a single row, instead of two rows)
+```{r, warning=FALSE, message=FALSE}
+Metadata_ITS=
+  read_tsv("../Aus23_16S_Metabarcoding/MetabarcodingMetadata.txt") %>%
+  slice(-1) %>% #remove the comment row 
+  rename("SampleID"=`sample-id`) %>% #rename SampleID column
+  mutate(TreeSampleType = gsub("-.", "", SampleID)) #generate new column with Tree ID and sample type concatenated
+
+Metadata_ITS_pooled=
+  Metadata_ITS %>%
+  distinct(TreeSampleType, .keep_all = TRUE)
+```
+
+## Calculates sequencing depth per sample, then rarefies to 70218
+Rarefaction curves are generated showing rarefaction point as dotted line. Rarefaction resulted in dropping sample P3-2_Root and the negative control. OTUs that had 0 sequences remaining after rarefaction were removed. Random seed was set to ensure reproducibility
+```{r}
+#calculates sequencing depth by taking column sums of OTU table
+SeqDepthITS=
+  OtuMatITS %>%
+  colSums() %>%
+  as.data.frame %>%
+  set_colnames("n_sequences")
+
+#uses vegan function to generate rarefaction curve dataframe using a step of 500 seqs
+RareCurve_ITs=
+  OtuMatITS %>%
+  t %>%
+  rarecurve(step=500, tidy=TRUE)
+
+#sets rarefaction depth to 70,218 seqs, based on seq depth dataframe
+rare_depth_ITS=70218
+#plots rarefaction curve, drawing a vertical line at the rarefaction depth
+ggplot(RareCurve_ITs, aes(x=Sample, y=Species, group=Site)) +
+  geom_line() +
+  geom_vline(xintercept=rare_depth_ITS, linetype=2) +
+  ylab("# ASVs") +
+  xlab("# Sequences")
+
+set.seed(2023) #make sure to set the random seed so that rarefaction is reproducible
+
+#uses vegan rarefaction function to rarefy to previously defined rarefaction depth
+OtuMatITS_rare=
+  OtuMatITS %>%
+  t %>%
+  as.data.frame %>%
+  rrarefy(sample=rare_depth_ITS) %>%
+  as.data.frame %>%
+  select(-which(colSums(.) == 0)) %>%
+  filter(rowSums(.) >= 70218)
+
+```
+
+## Generates an OTU table where replicates from the same tree are pooled
+This is done by taking the rarefied OTU table, then summing together the sequence counts for both replicates from each tree. For the soil samples, this means summing together the north and south plots, and for the root samples this means summing together the 2 PCR technical replicates
+
+```{r, warning=FALSE, message=FALSE}
+OtuMatITS_rare_pooled=
+  OtuMatITS_rare %>%
+  mutate(TreeSampleType = gsub("-.", "", rownames(.))) %>% #make a new column with the tree ID and sample type
+  group_by(TreeSampleType) %>% #group dataframe by tree ID and sample type
+  summarise(across(everything(), sum, .names = "{.col}")) %>% #sum together sequence counts for all samples that were from the same tree and sample type
+  column_to_rownames("TreeSampleType") #set rownames to tree ID_sample type
+
+```
+
+## Generates relative abundance OTU table versions of the unpooled and pooled rarefied tables
+This is done by dividing each OTU's sequence count by the total sequence count for that sample. This makes it so that all rows sum to 1
+
+This is done for pooled and unpooled tables, and for rarefied and unrarefied tables
+
+```{r, warning=FALSE, message=FALSE}
+OtuMatITS_rare_pooled_rel=
+  OtuMatITS_rare_pooled %>%
+  sweep(1, rowSums(.), FUN = "/") 
+
+OtuMatITS_rare_rel=
+  OtuMatITS_rare %>%
+  sweep(1, rowSums(.), FUN = "/") 
+
+OtuMatITS_rel=
+  OtuMatITS %>%
+  t %>%
+  as.data.frame %>% 
+  sweep(1, rowSums(.), FUN = "/")
+
+OtuMatITS_pooled_rel=
+  OtuMatITS %>%
+  t %>%
+  as.data.frame %>%
+  mutate(TreeSampleType = gsub("-.", "", rownames(.))) %>% #make a new column with the tree ID and sample type
+  group_by(TreeSampleType) %>% #group dataframe by tree ID and sample type
+  summarise(across(everything(), sum, .names = "{.col}")) %>% #sum together sequence counts for all samples that were from the same tree and sample type
+  column_to_rownames("TreeSampleType") %>% #set rownames to tree ID_sample type
+  sweep(1, rowSums(.), FUN = "/")
+```
+
+## Generates Aitchison distance matrices
+This is done on both the pooled and unpooled versions of the OTU table, both after rarefaction (but not on the relativized versions of the OTU tables).
+
+A pseudocount value of 1 is used for the log transform
+```{r, warning=FALSE, message=FALSE}
+Aitchison_unpooled_ITS=vegdist(OtuMatITS_rel, method = "aitchison", pseudocount=1)
+
+Aitchison_pooled_ITS=vegdist(OtuMatITS_pooled_rel, method = "aitchison", pseudocount=1)
+```
+
+## Generates alpha diversity dataframe for pooled and unpooled rarefied OTU tables
+
+Also calculates richness or fungal guilds.
+
+Fungal trait assignments generated by Lennel's script "Australia_FT_FGuild_Annotation" are loaded in from a tsv file. The primary_lifestyle column is used for guild assignments. Abundance of guilds is calculated by summing together abundance of all OTUs belonging to that guild for the guilds ectomycorrhizal, arbuscular mycorrhizal, root endophyte, and saprotroph (for sap guild I lumped together all saprotroph guilds from that annotations). I also created an "other" category with the relative abundance of all OTUs that do not fall into one of these guilds.
+```{r, warning=FALSE, message=FALSE}
+AlphaDiv_ITS=
+  data.frame(Shannon=diversity(OtuMatITS_rare, index="shannon"),
+             Simpson=diversity(OtuMatITS_rare, index="simpson"),
+             Invsimpson=diversity(OtuMatITS_rare, index="invsimpson"),
+             Richness=specnumber(OtuMatITS_rare)) %>%
+  mutate(SampleID=rownames(.)) %>%
+  left_join(Metadata_ITS)
+
+AlphaDiv_pooled_ITS=
+  data.frame(Shannon=diversity(OtuMatITS_rare_pooled, index="shannon"),
+             Simpson=diversity(OtuMatITS_rare_pooled, index="simpson"),
+             Invsimpson=diversity(OtuMatITS_rare_pooled, index="invsimpson"),
+             Richness=specnumber(OtuMatITS_rare_pooled)) %>%
+  mutate(TreeSampleType=rownames(.)) %>%
+  left_join(Metadata_ITS_pooled)
+
+
+ITS_guild_richness=
+  OtuMatITS_rare %>%
+  mutate_all(~ ifelse(. > 0, 1, .)) %>% #converts dataframe to presence/absense. Present=1, Absent=0
+  t %>%
+  as.data.frame %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(select(TaxITS_funguild, primary_lifestyle, otu), by="otu") %>%
+  mutate(guild_edited=
+           case_when(
+             primary_lifestyle=="arbuscular_mycorrhizal" ~ "AMF_richness",
+             primary_lifestyle=="ectomycorrhizal" ~ "ECM_richness",
+             primary_lifestyle=="root_endophyte" ~ "Endo_richness",
+             primary_lifestyle=="plant_pathogen" ~ "Path_richness",
+             str_detect(primary_lifestyle, "saprotroph") ~ "Sap_richness",
+             .default="Other_richness")) %>%
+  select(-primary_lifestyle, -otu) %>%
+  group_by(guild_edited) %>% 
+  summarise(across(everything(), sum, na.rm = TRUE)) %>% 
+  column_to_rownames("guild_edited") %>%
+  t %>%
+  as.data.frame %>% 
+  mutate(SampleID=rownames(.))
+
+ITS_guild_richness_pooled=
+  OtuMatITS_rare_pooled %>%
+  mutate_all(~ ifelse(. > 0, 1, .)) %>% #converts dataframe to presence/absense. Present=1, Absent=0
+  t %>%
+  as.data.frame %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(select(TaxITS_funguild, primary_lifestyle, otu), by="otu") %>%
+  mutate(guild_edited=
+           case_when(
+             primary_lifestyle=="arbuscular_mycorrhizal" ~ "AMF_richness",
+             primary_lifestyle=="ectomycorrhizal" ~ "ECM_richness",
+             primary_lifestyle=="root_endophyte" ~ "Endo_richness",
+             primary_lifestyle=="plant_pathogen" ~ "Path_richness",
+             str_detect(primary_lifestyle, "saprotroph") ~ "Sap_richness",
+             .default="Other_richness")) %>%
+  select(-primary_lifestyle, -otu) %>%
+  group_by(guild_edited) %>% 
+  summarise(across(everything(), sum, na.rm = TRUE)) %>% 
+  column_to_rownames("guild_edited") %>%
+  t %>%
+  as.data.frame %>% 
+  mutate(TreeSampleType=rownames(.))
+```
+
+## Generates guild summaries based on fungal traits guild assignments
+Fungal guilds were handled as described above for the richness calculations
+
+This was done for the pooled and unpooled data (both relative abundace OTU tables), then joined with the alpha diversity dataframe, and with the guild richness dataframe
+```{r, warning=FALSE, message=FALSE}
+ITS_guild_summ=
+  OtuMatITS_rel %>%
+  t %>%
+  as.data.frame %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(select(TaxITS_funguild, primary_lifestyle, otu), by="otu") %>%
+  mutate(guild_edited=
+           case_when(
+             primary_lifestyle=="arbuscular_mycorrhizal" ~ "AMF_abund",
+             primary_lifestyle=="ectomycorrhizal" ~ "ECM_abund",
+             primary_lifestyle=="root_endophyte" ~ "Endo_abund",
+             primary_lifestyle=="plant_pathogen" ~ "Path_abund",
+             str_detect(primary_lifestyle, "saprotroph") ~ "Sap_abund",
+             .default="Other_abund")) %>%
+  select(-primary_lifestyle, -otu) %>%
+  group_by(guild_edited) %>%
+  summarise_all(sum, na.rm = TRUE) %>%
+  column_to_rownames("guild_edited") %>%
+  t %>%
+  as.data.frame %>%
+  mutate(SampleID=rownames(.))
+
+AlphaDivGuildsITS=
+  AlphaDiv_ITS %>%
+  left_join(ITS_guild_summ, by="SampleID") %>%
+  left_join(ITS_guild_richness, by="SampleID")
+
+ITS_guild_summ_pooled=
+  OtuMatITS_pooled_rel %>%
+  t %>%
+  as.data.frame %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(select(TaxITS_funguild, primary_lifestyle, otu), by="otu") %>%
+  mutate(guild_edited=
+           case_when(
+             primary_lifestyle=="arbuscular_mycorrhizal" ~ "AMF_abund",
+             primary_lifestyle=="ectomycorrhizal" ~ "ECM_abund",
+             primary_lifestyle=="root_endophyte" ~ "Endo_abund",
+             primary_lifestyle=="plant_pathogen" ~ "Path_abund",
+             str_detect(primary_lifestyle, "saprotroph") ~ "Sap_abund",
+             .default="Other_abund")) %>%
+  select(-primary_lifestyle, -otu) %>%
+  group_by(guild_edited) %>%
+  summarise_all(sum, na.rm = TRUE) %>%
+  column_to_rownames("guild_edited") %>%
+  t %>%
+  as.data.frame %>%
+  mutate(TreeSampleType=rownames(.))
+
+AlphaDivGuildsITS_pooled=
+  AlphaDiv_pooled_ITS %>%
+  left_join(ITS_guild_summ_pooled, by="TreeSampleType") %>%
+  left_join(ITS_guild_richness_pooled, by="TreeSampleType")
+
+```
+
+## Saving/exporting files as csv's
+OTU tables and distance matrices are saved as csv's so that they can easily be used in other analyses. 
+```{r, warning=FALSE, message=FALSE}
+filepath="../Aus23_ITS_Metabarcoding/OTUTables/"
+
+write.csv(AlphaDivGuildsITS, paste(filepath, "AlphaDivGuildsITS.csv", sep=""))
+write.csv(AlphaDivGuildsITS_pooled, paste(filepath, "AlphaDivGuildsITS_pooled.csv", sep=""))
+write.csv(OtuMatITS_rare, paste(filepath, "OtuMatITS_rare.csv", sep=""))
+write.csv(OtuMatITS_rare_rel, paste(filepath, "OtuMatITS_rare_rel.csv", sep=""))
+write.csv(OtuMatITS_rare_pooled, paste(filepath, "OtuMatITS_rare_pooled.csv", sep=""))
+write.csv(OtuMatITS_rare_pooled_rel, paste(filepath, "OtuMatITS_rare_pooled_rel.csv", sep=""))
+
+write.csv(OtuMatITS_pooled_rel, paste(filepath, "OtuMatITS_pooled_rel.csv", sep=""))
+write.csv(OtuMatITS_rel, paste(filepath, "OtuMatITS_rel.csv", sep=""))
+
+write.csv(as.matrix(Aitchison_unpooled_ITS), paste(filepath, "Aitchison_unpooled_ITS.csv", sep=""))
+write.csv(as.matrix(Aitchison_pooled_ITS), paste(filepath, "Aitchison_pooled_ITS.csv", sep=""))
+```

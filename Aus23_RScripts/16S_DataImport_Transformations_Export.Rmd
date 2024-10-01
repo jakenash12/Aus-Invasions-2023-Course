@@ -1,0 +1,222 @@
+---
+title: "16S_DataImport_Transformations_Export"
+author: "Jake Nash"
+date: "2024-09-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Required Packages
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(vegan)
+library(magrittr)
+library(tibble)
+```
+
+## Import taxonomy file and parse taxonomy string into separate columns
+```{r, warning=FALSE, message=FALSE}
+extract_text <- function(x) {
+  sub(".+__", "", x)
+}
+
+TaxMat16S_SILVA=
+  read_tsv("../Aus23_16S_Metabarcoding/Aus23_16S_SilvaTaxonomy_16S.tsv") %>% 
+  rename("otu"="Feature ID") %>%
+  select(-Confidence) %>%
+  separate_wider_delim(too_few="align_start", cols = Taxon, delim = ";", names = c("Kingdom", "Phylum","Class", "Order","Family","Genus","Species", "SH")) %>%
+  mutate(across(!contains("otu"), ~extract_text(.)))
+```
+
+## Import ASV table
+```{r, warning=FALSE, message=FALSE}
+OtuMat16S=
+  read_tsv("../Aus23_16S_Metabarcoding/Aus23_16S_ASV_table.tsv", skip=1) %>%
+  column_to_rownames("#OTU ID")
+```
+
+## Import Metadata
+```{r, warning=FALSE, message=FALSE}
+Metadata_16S=
+  read_tsv("../Aus23_16S_Metabarcoding/MetabarcodingMetadata.txt") %>%
+  slice(-1) %>% #remove the comment row 
+  rename("SampleID"=`sample-id`) #rename SampleID column
+```
+
+## Removes ASVs that were identified as chloroplast/mitochondria
+First generates list of 16S ASVs that are organellar based on SILVA taxonomy
+
+Then filters out lines from OTU table that match those ASVs
+```{r, warning=FALSE, message=FALSE}
+ASV_mito_chloro_list=
+  TaxMat16S_SILVA %>% 
+  filter((Order=="Chloroplast" |
+            Family=="Mitochondria")) %$%
+  otu
+
+OtuMat16S_filter=
+  OtuMat16S %>%
+  filter(!(rownames(.) %in% ASV_mito_chloro_list))
+```
+
+
+## Calculates sequencing depth per sample, then rarefies to 24860
+Sequencing depth is check for OTU table both before and after removing mitochondrial/chloroplast sequences. We then calculate the percentage of sequences filtered from each sample. We find that eucalyptus root samples have the highest percentage sequneces being removed, likely due to mismatch with the PNA blockers.
+
+Rarefaction is then performed on OTU table that has had mitochondria and chloroplasts filtered. 
+
+Rarefaction curves are generated showing rarefaction point as dotted line. Rarefaction resulted in dropping sample P3-2_Root and the negative control. OTUs that had 0 sequences remaining after rarefaction were removed. Random seed was set to ensure reproducibility
+```{r}
+#calculates sequencing depth by taking column sums of OTU table
+SeqDepth16S_nonplastid=
+  OtuMat16S_filter %>%
+  colSums() %>%
+  as.data.frame %>%
+  set_colnames("n_sequences_nonplastid") %>%
+  mutate(SampleID=rownames(.))
+
+SeqDepth16S=
+  OtuMat16S %>%
+  colSums() %>%
+  as.data.frame %>%
+  set_colnames("n_sequences") %>% 
+  mutate(SampleID=rownames(.)) %>%
+  left_join(SeqDepth16S_nonplastid) %>%
+  mutate(SeqDiscard=n_sequences-n_sequences_nonplastid,
+         PercDiscard=100*SeqDiscard/n_sequences)
+
+SeqDepth16S %>%
+  left_join(Metadata_16S) %>%
+  ggplot(aes(x=SampleType, y=PercDiscard, color=TreeSpecies)) +
+  geom_boxplot() + 
+  ggtitle("% of sequences Mitochondrial/Chloroplast")
+
+#uses vegan function to generate rarefaction curve dataframe using a step of 500 seqs
+RareCurve_16S=
+  OtuMat16S_filter %>%
+  t %>%
+  rarecurve(step=500, tidy=TRUE)
+
+#sets rarefaction depth to 24,860 seqs, based on seq depth dataframe
+rare_depth_16S=24860
+#plots rarefaction curve, drawing a vertical line at the rarefaction depth
+ggplot(RareCurve_16S, aes(x=Sample, y=Species, group=Site)) +
+  geom_line() +
+  geom_vline(xintercept=rare_depth_16S, linetype=2) +
+  ylab("# ASVs") +
+  xlab("# Sequences")
+
+set.seed(2023) #make sure to set the random seed so that rarefaction is reproducible
+
+#uses vegan rarefaction function to rarefy to previously defined rarefaction depth
+OtuMat16S_rare=
+  OtuMat16S_filter %>%
+  t %>%
+  as.data.frame %>%
+  rrarefy(sample=rare_depth_16S) %>%
+  as.data.frame %>%
+  select(-which(colSums(.) == 0)) %>%
+  filter(rowSums(.) >= rare_depth_16S)
+
+```
+
+## Generates an OTU table where replicates from the same tree are pooled
+This is done by taking the rarefied OTU table, then summing together the sequence counts for both replicates from each tree. For the soil samples, this means summing together the north and south plots, and for the root samples this means summing together the 2 PCR technical replicates
+```{r, warning=FALSE, message=FALSE}
+OtuMat16S_rare_pooled=
+  OtuMat16S_rare %>%
+  mutate(TreeSampleType = gsub("-.", "", rownames(.))) %>% #make a new column with the tree ID and sample type
+  group_by(TreeSampleType) %>% #group dataframe by tree ID and sample type
+  summarise(across(everything(), sum, .names = "{.col}")) %>% #sum together sequence counts for all samples that were from the same tree and sample type
+  column_to_rownames("TreeSampleType") #set rownames to tree ID_sample type
+
+```
+
+## Generates relative abundance OTU table versions of the unpooled and pooled rarefied tables
+This is done by dividing each OTU's sequence count by the total sequence count for that sample. This makes it so that all rows sum to 1
+
+```{r, warning=FALSE, message=FALSE}
+OtuMat16S_rare_pooled_rel=
+  OtuMat16S_rare_pooled %>%
+  sweep(1, rowSums(.), FUN = "/")  # do compositional data transform
+
+OtuMat16S_rare_rel=
+  OtuMat16S_rare %>%
+  sweep(1, rowSums(.), FUN = "/")  # do compositional data transform
+
+OtuMat16S_rel=
+  OtuMat16S_filter %>%
+  t %>% 
+  as.data.frame %>%
+  sweep(1, rowSums(.), FUN = "/") # do compositional data transform
+
+OtuMat16S_pooled_rel=
+  OtuMat16S_filter %>%
+  t %>%
+  as.data.frame %>%
+  mutate(TreeSampleType = gsub("-.", "", rownames(.))) %>% #make a new column with the tree ID and sample type
+  group_by(TreeSampleType) %>% #group dataframe by tree ID and sample type
+  summarise(across(everything(), sum, .names = "{.col}")) %>% #sum together sequence counts for all samples that were from the same tree and sample type
+  column_to_rownames("TreeSampleType") %>% #set rownames to tree ID_sample type
+  sweep(1, rowSums(.), FUN = "/")  # do compositional data transform
+
+```
+
+## Generates Aitchison distance matrices
+This is done on both the pooled and unpooled versions of the OTU table, both unrarefied and relativized versions 
+
+A pseudocount value of 1 is used for the log transform
+```{r, warning=FALSE, message=FALSE}
+Aitchison_unpooled_rel_16S=vegdist(OtuMat16S_rel, method = "aitchison", pseudocount=1)
+
+Aitchison_pooled_rel_16S=vegdist(OtuMat16S_pooled_rel, method = "aitchison", pseudocount=1)
+```
+
+## Generates alpha diversity dataframe for pooled and unpooled rarefied OTU tables
+```{r, warning=FALSE, message=FALSE}
+AlphaDiv_16S=
+  data.frame(Shannon=diversity(OtuMat16S_rare, index="shannon"),
+             Simpson=diversity(OtuMat16S_rare, index="simpson"),
+             Invsimpson=diversity(OtuMat16S_rare, index="invsimpson"),
+             Richness=specnumber(OtuMat16S_rare)) %>%
+  mutate(SampleID=rownames(.)) %>%
+  left_join(Metadata_16S)
+
+AlphaDiv_pooled_16S=
+  data.frame(Shannon=diversity(OtuMat16S_rare_pooled, index="shannon"),
+             Simpson=diversity(OtuMat16S_rare_pooled, index="simpson"),
+             Invsimpson=diversity(OtuMat16S_rare_pooled, index="invsimpson"),
+             Richness=specnumber(OtuMat16S_rare_pooled)) %>%
+  mutate(SampleID=rownames(.)) %>%
+  left_join(Metadata_16S)
+
+```
+
+## Generates guild summaries based on fungal traits guild assignments
+Need to finish this...
+Will merge this with the alpha diversity dataframe and export it as a summary table
+```{r, warning=FALSE, message=FALSE}
+
+
+```
+
+## Saving/exporting files as csv's
+OTU tables and distance matrices are saved as csv's so that they can easily be used in other analyses. 
+```{r, warning=FALSE, message=FALSE}
+filepath="../Aus23_16S_Metabarcoding/OTUTables/"
+
+write.csv(OtuMat16S_rare, paste(filepath, "OtuMat16S_rare.csv", sep=""))
+write.csv(OtuMat16S_rare_rel, paste(filepath, "OtuMat16S_rare_rel.csv", sep=""))
+write.csv(OtuMat16S_rare_pooled, paste(filepath, "OtuMat16S_rare_pooled.csv", sep=""))
+write.csv(OtuMat16S_rare_pooled_rel, paste(filepath, "OtuMat16S_rare_pooled_rel.csv", sep=""))
+
+write.csv(OtuMat16S_rel, paste(filepath, "OtuMat16S_rel.csv", sep=""))
+write.csv(OtuMat16S_pooled_rel, paste(filepath, "OtuMat16S_pooled_rel.csv", sep=""))
+
+
+write.csv(as.matrix(Aitchison_unpooled_rel_16S), paste(filepath, "Aitchison_unpooled_rel_16S.csv", sep=""))
+write.csv(as.matrix(Aitchison_pooled_rel_16S), paste(filepath, "Aitchison_pooled_rel_16S.csv", sep=""))
+```
