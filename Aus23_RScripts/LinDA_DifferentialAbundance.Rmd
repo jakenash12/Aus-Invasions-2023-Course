@@ -1,0 +1,232 @@
+---
+title: "LINDA Differential Abundance Testings"
+author: "Jake Nash"
+date: "2024-10-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+These scripts use LinDA to perform differential abundance testing to test for effects of tree species on OTU abundance. Tests are performed separately for root and soil samples. 
+
+The LinDA method found very few differentially abundant OTUs and seems to be overly conservative (i.e. too many false negatives). I think ANCOM-BC is a more reliable method
+
+## Load required packages
+Note that the MicrobiomeStat package contains the code for LINDA
+```{r, warning=FALSE, message=FALSE}
+library(MicrobiomeStat)
+library(dplyr)
+library(magrittr)
+library(tibble)
+library(ANCOMBC)
+library(tidyverse)
+library(readxl)
+```
+
+## Reads in raw ITS OTU tables and metadata
+
+```{r, warning=FALSE, message=FALSE}
+OtuMatITS=
+  read_tsv("../Aus23_ITS_Metabarcoding/ITS2_OTUTable_97.tsv", skip=1) %>%
+  column_to_rownames("#OTU ID")
+
+Metadata_ITS=
+  read_tsv("../Aus23_16S_Metabarcoding/MetabarcodingMetadata.txt") %>%
+  slice(-1) %>% #remove the comment row 
+  rename("SampleID"=`sample-id`) %>% #rename SampleID column
+  mutate(TreeSampleType = gsub("-.", "", SampleID)) #generate new column with Tree ID and sample type concatenated
+
+TaxMatITS=
+  read_xlsx("../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited.xlsx") %>%
+  rename("otu"="Feature ID") %>%
+  select(otu, Kingdom:Species)
+
+OtuMat16S_filter=
+  read.csv("../Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_filter.csv", row.names = 1) %>%
+  mutate(across(everything())) %>%
+  rename_with(~ gsub("\\.", "-", .))
+
+Metadata_16S=
+  read_tsv("../Aus23_16S_Metabarcoding/MetabarcodingMetadata.txt") %>%
+  slice(-1) %>% #remove the comment row 
+  rename("SampleID"=`sample-id`) %>% #rename SampleID column
+  mutate(TreeSampleType = gsub("-.", "", SampleID)) #generate new column with Tree ID and sample type concatenated
+
+#custom function to parse taxonomy
+extract_text <- function(x) {
+  sub(".+__", "", x)
+}
+
+TaxMat16S_SILVA=
+  read_tsv("../Aus23_16S_Metabarcoding/Aus23_16S_SilvaTaxonomy_16S.tsv") %>% 
+  rename("otu"="Feature ID") %>%
+  select(-Confidence) %>%
+  separate_wider_delim(too_few="align_start", cols = Taxon, delim = ";", names = c("Kingdom", "Phylum","Class", "Order","Family","Genus","Species", "SH")) %>%
+  mutate(across(!contains("otu"), ~extract_text(.)))
+```
+
+## LINDA test for ITS root samples
+```{r, warning=FALSE, message=FALSE}
+#create ITS OTU table just with Root samples
+OtuMatITS_root= 
+  OtuMatITS%>% 
+  select(contains("Root")) 
+
+#create metadata table just with root samples in ITS otu table
+Metadata_ITS_root=
+  Metadata_ITS %>%
+  filter(SampleID %in% colnames(OtuMatITS_root))
+
+#runs LinDA test for effect of tree species, using tree individual as random effects
+Linda_ITS_root =
+  linda(
+    feature.dat=OtuMatITS_root,
+    meta.dat=Metadata_ITS_root,
+    formula='~TreeSpecies + (1|TreeSampleType)',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
+#creates a formatted dataframe for ITS root samples LinDA
+Linda_ITS_root_df=
+  as.data.frame(Linda_ITS_root$output$TreeSpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMatITS)
+```
+
+## LINDA test on ITS Soil samples
+```{r, warning=FALSE, message=FALSE}
+#create ITS OTU table just with Soil samples
+OtuMatITS_soil= 
+  OtuMatITS %>% 
+  select(contains("Soil")) 
+  
+#create metadata table just with root samples in ITS otu table
+Metadata_ITS_soil=
+  Metadata_ITS %>%
+  filter(SampleID %in% colnames(OtuMatITS_soil))
+
+#runs LinDA test for effect of tree species, using tree individual as random effects
+Linda_ITS_soil =
+  linda(
+    feature.dat=OtuMatITS_soil,
+    meta.dat=Metadata_ITS_soil,
+    formula='~TreeSpecies + (1|TreeSampleType)',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
+#creates a formatted dataframe for ITS root samples LinDA
+Linda_ITS_soil_df=
+  as.data.frame(Linda_ITS_soil$output$TreeSpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMatITS)
+
+```
+
+## LINDA test for 16S root samples
+```{r, warning=FALSE, message=FALSE}
+#create 16S OTU table just with Root samples
+OtuMat16S_root= 
+  OtuMat16S_filter %>% 
+  select(contains("Root")) 
+
+#create metadata table just with root samples in 16S otu table
+Metadata_16S_root=
+  Metadata_16S %>%
+  filter(SampleID %in% colnames(OtuMat16S_root))
+
+#runs LinDA test for effect of tree species, using tree individual as random effects
+Linda_16S_root =
+  linda(
+    feature.dat=OtuMat16S_root,
+    meta.dat=Metadata_16S_root,
+    formula='~TreeSpecies + (1|TreeSampleType)',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
+#creates a formatted dataframe for 16S root samples LinDA
+Linda_16S_root_df=
+  as.data.frame(Linda_16S_root$output$TreeSpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMat16S_SILVA)
+```
+
+## LINDA test on 16S Soil samples
+```{r, warning=FALSE, message=FALSE}
+#create 16S OTU table just with Soil samples
+OtuMat16S_soil= 
+  OtuMat16S_filter %>% 
+  select(contains("Soil")) 
+  
+#create metadata table just with root samples in 16S otu table
+Metadata_16S_soil=
+  Metadata_16S %>%
+  filter(SampleID %in% colnames(OtuMat16S_soil))
+
+#runs LinDA test for effect of tree species, using tree individual as random effects
+Linda_16S_soil =
+  linda(
+    feature.dat=OtuMat16S_soil,
+    meta.dat=Metadata_16S_soil,
+    formula='~TreeSpecies + (1|TreeSampleType)',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
+#creates a formatted dataframe for 16S root samples LinDA
+Linda_16S_soil_df=
+  as.data.frame(Linda_16S_soil$output$TreeSpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMat16S_SILVA)
+
+```
+
+## Create Summary Data Table
+Table just has counts of # OTUs differentially abundant in each test
+
+Table shows there are VERY few OTUs differing by species in Linda tests. Just 1 significant OTU across the 4 tests
+```{r, warning=FALSE, message=FALSE}
+
+n_ITS_root=
+  Linda_ITS_root_df %>%
+  filter(reject) %>%
+  nrow
+
+n_ITS_soil=
+  Linda_ITS_soil_df %>%
+  filter(reject) %>%
+  nrow
+
+n_16S_root=
+  Linda_16S_root_df %>%
+  filter(reject) %>%
+  nrow
+
+n_16S_soil=
+  Linda_16S_soil_df %>%
+  filter(reject) %>%
+  nrow
+
+LINDA_summary=
+  data.frame(Locus=c("ITS", "ITS", "16S", "16S"),
+             SampleType=c("Root","Soil","Root","Soil"),
+             n_taxa_significant=c(n_ITS_root, n_ITS_soil, n_16S_root, n_16S_soil))
+
+LINDA_summary
+```
