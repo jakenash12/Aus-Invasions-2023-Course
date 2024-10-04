@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 These scripts use LinDA to perform differential abundance testing to test for effects of tree species on OTU abundance. Tests are performed separately for root and soil samples. 
 
-The LinDA method found very few differentially abundant OTUs and seems to be overly conservative (i.e. too many false negatives). I think ANCOM-BC is a more reliable method
+The LinDA method was done both with and without the random effect of Tree individual to test how it affected statistical power.
 
 ## Load required packages
 Note that the MicrobiomeStat package contains the code for LINDA
@@ -92,10 +92,27 @@ Linda_ITS_root =
     p.adj.method="fdr",
     alpha=0.05)
 
+Linda_ITS_root_no_random =
+  linda(
+    feature.dat=OtuMatITS_root,
+    meta.dat=Metadata_ITS_root,
+    formula='~TreeSpecies',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
 #creates a formatted dataframe for ITS root samples LinDA
 Linda_ITS_root_df=
   as.data.frame(Linda_ITS_root$output$TreeSpeciesPine) %>%
   mutate(otu=rownames(.)) %>%
+  left_join(TaxMatITS)
+
+Linda_ITS_root_no_random_df=
+  as.data.frame(Linda_ITS_root_no_random$output$TreeSpeciesPine) %>%
+    mutate(otu=rownames(.)) %>%
   left_join(TaxMatITS)
 ```
 
@@ -124,9 +141,26 @@ Linda_ITS_soil =
     p.adj.method="fdr",
     alpha=0.05)
 
+Linda_ITS_soil_no_random =
+  linda(
+    feature.dat=OtuMatITS_soil,
+    meta.dat=Metadata_ITS_soil,
+    formula='~TreeSpecies',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
 #creates a formatted dataframe for ITS root samples LinDA
 Linda_ITS_soil_df=
   as.data.frame(Linda_ITS_soil$output$TreeSpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMatITS)
+
+Linda_ITS_soil_no_random_df=
+  as.data.frame(Linda_ITS_soil_no_random$output$TreeSpeciesPine) %>%
   mutate(otu=rownames(.)) %>%
   left_join(TaxMatITS)
 
@@ -157,9 +191,26 @@ Linda_16S_root =
     p.adj.method="fdr",
     alpha=0.05)
 
+Linda_16S_root_no_random =
+  linda(
+    feature.dat=OtuMat16S_root,
+    meta.dat=Metadata_16S_root,
+    formula='~TreeSpecies',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
 #creates a formatted dataframe for 16S root samples LinDA
 Linda_16S_root_df=
   as.data.frame(Linda_16S_root$output$TreeSpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMat16S_SILVA)
+
+Linda_16S_root_no_random_df=
+  as.data.frame(Linda_16S_root_no_random$output$TreeSpeciesPine) %>%
   mutate(otu=rownames(.)) %>%
   left_join(TaxMat16S_SILVA)
 ```
@@ -189,9 +240,26 @@ Linda_16S_soil =
     p.adj.method="fdr",
     alpha=0.05)
 
+Linda_16S_soil_no_random =
+  linda(
+    feature.dat=OtuMat16S_soil,
+    meta.dat=Metadata_16S_soil,
+    formula='~TreeSpecies',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
 #creates a formatted dataframe for 16S root samples LinDA
 Linda_16S_soil_df=
   as.data.frame(Linda_16S_soil$output$TreeSpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMat16S_SILVA)
+
+Linda_16S_soil_no_random_df=
+  as.data.frame(Linda_16S_soil_no_random$output$TreeSpeciesPine) %>%
   mutate(otu=rownames(.)) %>%
   left_join(TaxMat16S_SILVA)
 
@@ -223,10 +291,36 @@ n_16S_soil=
   filter(reject) %>%
   nrow
 
+n_ITS_root_no_random=
+  Linda_ITS_root_no_random_df %>%
+  filter(reject) %>%
+  nrow
+
+n_ITS_soil_no_random=
+  Linda_ITS_soil_no_random_df %>%
+  filter(reject) %>%
+  nrow
+
+n_16S_root_no_random=
+  Linda_16S_root_no_random_df %>%
+  filter(reject) %>%
+  nrow
+
+n_16S_soil_no_random=
+  Linda_16S_soil_no_random_df %>%
+  filter(reject) %>%
+  nrow
+
+
 LINDA_summary=
-  data.frame(Locus=c("ITS", "ITS", "16S", "16S"),
-             SampleType=c("Root","Soil","Root","Soil"),
-             n_taxa_significant=c(n_ITS_root, n_ITS_soil, n_16S_root, n_16S_soil))
+  data.frame(Locus=c("ITS", "ITS", "16S", "16S", 
+                     "ITS", "ITS", "16S", "16S"),
+             SampleType=c("Root","Soil","Root","Soil",
+                          "Root","Soil","Root","Soil"),
+             ModelType=c("RandomEffect","RandomEffect","RandomEffect","RandomEffect",
+                         "NoRandomEffect","NoRandomEffect","NoRandomEffect","NoRandomEffect"),
+             n_taxa_significant=c(n_ITS_root, n_ITS_soil, n_16S_root, n_16S_soil,
+                                  n_ITS_root_no_random, n_ITS_soil_no_random, n_16S_root_no_random, n_16S_soil_no_random))
 
 LINDA_summary
 ```

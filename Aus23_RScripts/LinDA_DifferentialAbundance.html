@@ -366,9 +366,8 @@ pre code {
 <p>These scripts use LinDA to perform differential abundance testing to
 test for effects of tree species on OTU abundance. Tests are performed
 separately for root and soil samples.</p>
-<p>The LinDA method found very few differentially abundant OTUs and
-seems to be overly conservative (i.e. too many false negatives). I think
-ANCOM-BC is a more reliable method</p>
+<p>The LinDA method was done both with and without the random effect of
+Tree individual to test how it affected statistical power.</p>
 <div id="load-required-packages" class="section level2">
 <h2>Load required packages</h2>
 <p>Note that the MicrobiomeStat package contains the code for LINDA</p>
@@ -449,10 +448,31 @@ Linda_ITS_root =
 ## Pseudo-count approach is used.
 ## Fit linear mixed effects models ...
 ## Completed.</code></pre>
+<pre class="r"><code>Linda_ITS_root_no_random =
+  linda(
+    feature.dat=OtuMatITS_root,
+    meta.dat=Metadata_ITS_root,
+    formula=&#39;~TreeSpecies&#39;,
+    feature.dat.type=&quot;count&quot;,
+    prev.filter=0.1,
+    zero.handling=&quot;pseudo.cnt&quot;,
+    pseudo.cnt = 0.5,
+    p.adj.method=&quot;fdr&quot;,
+    alpha=0.05)</code></pre>
+<pre><code>## 3639  features are filtered!
+## The filtered data has  36  samples and  613  features will be tested!
+## Imputation approach is used.
+## Fit linear models ...
+## Completed.</code></pre>
 <pre class="r"><code>#creates a formatted dataframe for ITS root samples LinDA
 Linda_ITS_root_df=
   as.data.frame(Linda_ITS_root$output$TreeSpeciesPine) %&gt;%
   mutate(otu=rownames(.)) %&gt;%
+  left_join(TaxMatITS)
+
+Linda_ITS_root_no_random_df=
+  as.data.frame(Linda_ITS_root_no_random$output$TreeSpeciesPine) %&gt;%
+    mutate(otu=rownames(.)) %&gt;%
   left_join(TaxMatITS)</code></pre>
 </div>
 <div id="linda-test-on-its-soil-samples" class="section level2">
@@ -484,9 +504,30 @@ Linda_ITS_soil =
 ## Pseudo-count approach is used.
 ## Fit linear mixed effects models ...
 ## Completed.</code></pre>
+<pre class="r"><code>Linda_ITS_soil_no_random =
+  linda(
+    feature.dat=OtuMatITS_soil,
+    meta.dat=Metadata_ITS_soil,
+    formula=&#39;~TreeSpecies&#39;,
+    feature.dat.type=&quot;count&quot;,
+    prev.filter=0.1,
+    zero.handling=&quot;pseudo.cnt&quot;,
+    pseudo.cnt = 0.5,
+    p.adj.method=&quot;fdr&quot;,
+    alpha=0.05)</code></pre>
+<pre><code>## 3123  features are filtered!
+## The filtered data has  36  samples and  1129  features will be tested!
+## Pseudo-count approach is used.
+## Fit linear models ...
+## Completed.</code></pre>
 <pre class="r"><code>#creates a formatted dataframe for ITS root samples LinDA
 Linda_ITS_soil_df=
   as.data.frame(Linda_ITS_soil$output$TreeSpeciesPine) %&gt;%
+  mutate(otu=rownames(.)) %&gt;%
+  left_join(TaxMatITS)
+
+Linda_ITS_soil_no_random_df=
+  as.data.frame(Linda_ITS_soil_no_random$output$TreeSpeciesPine) %&gt;%
   mutate(otu=rownames(.)) %&gt;%
   left_join(TaxMatITS)</code></pre>
 </div>
@@ -519,9 +560,30 @@ Linda_16S_root =
 ## Pseudo-count approach is used.
 ## Fit linear mixed effects models ...
 ## Completed.</code></pre>
+<pre class="r"><code>Linda_16S_root_no_random =
+  linda(
+    feature.dat=OtuMat16S_root,
+    meta.dat=Metadata_16S_root,
+    formula=&#39;~TreeSpecies&#39;,
+    feature.dat.type=&quot;count&quot;,
+    prev.filter=0.1,
+    zero.handling=&quot;pseudo.cnt&quot;,
+    pseudo.cnt = 0.5,
+    p.adj.method=&quot;fdr&quot;,
+    alpha=0.05)</code></pre>
+<pre><code>## 17238  features are filtered!
+## The filtered data has  36  samples and  2469  features will be tested!
+## Imputation approach is used.
+## Fit linear models ...
+## Completed.</code></pre>
 <pre class="r"><code>#creates a formatted dataframe for 16S root samples LinDA
 Linda_16S_root_df=
   as.data.frame(Linda_16S_root$output$TreeSpeciesPine) %&gt;%
+  mutate(otu=rownames(.)) %&gt;%
+  left_join(TaxMat16S_SILVA)
+
+Linda_16S_root_no_random_df=
+  as.data.frame(Linda_16S_root_no_random$output$TreeSpeciesPine) %&gt;%
   mutate(otu=rownames(.)) %&gt;%
   left_join(TaxMat16S_SILVA)</code></pre>
 </div>
@@ -554,9 +616,30 @@ Linda_16S_soil =
 ## Pseudo-count approach is used.
 ## Fit linear mixed effects models ...
 ## Completed.</code></pre>
+<pre class="r"><code>Linda_16S_soil_no_random =
+  linda(
+    feature.dat=OtuMat16S_soil,
+    meta.dat=Metadata_16S_soil,
+    formula=&#39;~TreeSpecies&#39;,
+    feature.dat.type=&quot;count&quot;,
+    prev.filter=0.1,
+    zero.handling=&quot;pseudo.cnt&quot;,
+    pseudo.cnt = 0.5,
+    p.adj.method=&quot;fdr&quot;,
+    alpha=0.05)</code></pre>
+<pre><code>## 16396  features are filtered!
+## The filtered data has  36  samples and  3311  features will be tested!
+## Pseudo-count approach is used.
+## Fit linear models ...
+## Completed.</code></pre>
 <pre class="r"><code>#creates a formatted dataframe for 16S root samples LinDA
 Linda_16S_soil_df=
   as.data.frame(Linda_16S_soil$output$TreeSpeciesPine) %&gt;%
+  mutate(otu=rownames(.)) %&gt;%
+  left_join(TaxMat16S_SILVA)
+
+Linda_16S_soil_no_random_df=
+  as.data.frame(Linda_16S_soil_no_random$output$TreeSpeciesPine) %&gt;%
   mutate(otu=rownames(.)) %&gt;%
   left_join(TaxMat16S_SILVA)</code></pre>
 </div>
@@ -586,17 +669,47 @@ n_16S_soil=
   filter(reject) %&gt;%
   nrow
 
+n_ITS_root_no_random=
+  Linda_ITS_root_no_random_df %&gt;%
+  filter(reject) %&gt;%
+  nrow
+
+n_ITS_soil_no_random=
+  Linda_ITS_soil_no_random_df %&gt;%
+  filter(reject) %&gt;%
+  nrow
+
+n_16S_root_no_random=
+  Linda_16S_root_no_random_df %&gt;%
+  filter(reject) %&gt;%
+  nrow
+
+n_16S_soil_no_random=
+  Linda_16S_soil_no_random_df %&gt;%
+  filter(reject) %&gt;%
+  nrow
+
+
 LINDA_summary=
-  data.frame(Locus=c(&quot;ITS&quot;, &quot;ITS&quot;, &quot;16S&quot;, &quot;16S&quot;),
-             SampleType=c(&quot;Root&quot;,&quot;Soil&quot;,&quot;Root&quot;,&quot;Soil&quot;),
-             n_taxa_significant=c(n_ITS_root, n_ITS_soil, n_16S_root, n_16S_soil))
+  data.frame(Locus=c(&quot;ITS&quot;, &quot;ITS&quot;, &quot;16S&quot;, &quot;16S&quot;, 
+                     &quot;ITS&quot;, &quot;ITS&quot;, &quot;16S&quot;, &quot;16S&quot;),
+             SampleType=c(&quot;Root&quot;,&quot;Soil&quot;,&quot;Root&quot;,&quot;Soil&quot;,
+                          &quot;Root&quot;,&quot;Soil&quot;,&quot;Root&quot;,&quot;Soil&quot;),
+             ModelType=c(&quot;RandomEffect&quot;,&quot;RandomEffect&quot;,&quot;RandomEffect&quot;,&quot;RandomEffect&quot;,
+                         &quot;NoRandomEffect&quot;,&quot;NoRandomEffect&quot;,&quot;NoRandomEffect&quot;,&quot;NoRandomEffect&quot;),
+             n_taxa_significant=c(n_ITS_root, n_ITS_soil, n_16S_root, n_16S_soil,
+                                  n_ITS_root_no_random, n_ITS_soil_no_random, n_16S_root_no_random, n_16S_soil_no_random))
 
 LINDA_summary</code></pre>
-<pre><code>##   Locus SampleType n_taxa_significant
-## 1   ITS       Root                  0
-## 2   ITS       Soil                  1
-## 3   16S       Root                  0
-## 4   16S       Soil                  0</code></pre>
+<pre><code>##   Locus SampleType      ModelType n_taxa_significant
+## 1   ITS       Root   RandomEffect                  0
+## 2   ITS       Soil   RandomEffect                  1
+## 3   16S       Root   RandomEffect                  0
+## 4   16S       Soil   RandomEffect                  0
+## 5   ITS       Root NoRandomEffect                 81
+## 6   ITS       Soil NoRandomEffect                  7
+## 7   16S       Root NoRandomEffect                 59
+## 8   16S       Soil NoRandomEffect                  0</code></pre>
 </div>
 
 
