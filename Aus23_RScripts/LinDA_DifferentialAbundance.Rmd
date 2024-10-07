@@ -265,62 +265,159 @@ Linda_16S_soil_no_random_df=
 
 ```
 
+## Creates Phyloseq files for ANCOMBC-2
+ANCOMBC-2 requires OTU table, taxonomy, and metadata be converted into a phyloseq format object. Phyloseq objects are also created with data subsetted into root and soil samples
+```{r, warning=FALSE, message=FALSE}
+OTU_ITS_phyloseq=
+  OtuMatITS %>%
+  as.matrix %>%
+  otu_table(taxa_are_rows = TRUE)
+
+TAX_ITS_phyloseq=
+  TaxMatITS %>%
+  filter(otu %in% rownames(OtuMatITS)) %>%
+  column_to_rownames("otu") %>%
+  as.matrix %>%
+  tax_table
+
+SAMPLES_ITS_phyloseq=
+  Metadata_ITS %>% 
+  filter(SampleID %in% colnames(OTU_ITS_phyloseq)) %>%
+  column_to_rownames("SampleID") %>% 
+  sample_data()
+
+PhyloseqITS <- phyloseq(OTU_ITS_phyloseq, TAX_ITS_phyloseq, SAMPLES_ITS_phyloseq)
+
+#subset phyloseq object into root and soil samples
+PhyloseqITS_root=subset_samples(PhyloseqITS, SampleType=="Root")
+PhyloseqITS_soil=subset_samples(PhyloseqITS, SampleType=="Soil")
+
+OTU_16S_phyloseq=
+  OtuMat16S_filter %>%
+  as.matrix %>%
+  otu_table(taxa_are_rows = TRUE)
+
+TAX_16S_phyloseq=
+  TaxMat16S_SILVA %>%
+  filter(otu %in% rownames(OtuMat16S)) %>%
+  column_to_rownames("otu") %>%
+  as.matrix %>%
+  tax_table
+
+SAMPLES_16S_phyloseq=
+  Metadata_16S %>%
+  filter(SampleID %in% colnames(OTU_16S_phyloseq)) %>%
+  column_to_rownames("SampleID") %>% 
+  sample_data()
+
+Phyloseq16S <- phyloseq(OTU_16S_phyloseq, TAX_16S_phyloseq, SAMPLES_16S_phyloseq)
+
+#subsets 16S phyloseq object into root and soil
+Phyloseq16S_root=subset_samples(Phyloseq16S, SampleType=="Root")
+Phyloseq16S_soil=subset_samples(Phyloseq16S, SampleType=="Soil")
+```
+
+## ITS root ANCOMBC-2 test
+```{r, warning=FALSE, message=FALSE}
+ANCOM_ITS_root = ancombc2(data = PhyloseqITS_root, tax_level = NULL,
+                  fix_formula = "TreeSpecies", rand_formula = "(1|TreeSampleType)",
+                  p_adj_method = "fdr", pseudo_sens = TRUE,
+                  prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+                  group = "TreeSpecies", struc_zero = FALSE, neg_lb = FALSE,
+                  alpha = 0.05, n_cl = 2, verbose = TRUE,
+                  global = TRUE, pairwise = FALSE, 
+                  dunnet = FALSE, trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, 
+                                      verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = lme4::lmerControl(), 
+                  mdfdr_control = list(fwer_ctrl_method = "fdr", B = 100), 
+                  trend_control = NULL)
+
+ANCOM_ITS_root_no_random = ancombc2(data = PhyloseqITS_root, tax_level = NULL,
+                  fix_formula = "TreeSpecies", rand_formula = NULL,
+                  p_adj_method = "fdr", pseudo_sens = TRUE,
+                  prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+                  group = "TreeSpecies", struc_zero = FALSE, neg_lb = FALSE,
+                  alpha = 0.05, n_cl = 2, verbose = TRUE,
+                  global = TRUE, pairwise = FALSE, 
+                  dunnet = FALSE, trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, 
+                                      verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = NULL, 
+                  mdfdr_control = list(fwer_ctrl_method = "fdr", B = 100), 
+                  trend_control = NULL)
+
+ANCOM_ITS_root_df=
+  ANCOM_ITS_root$res %>%
+  as.data.frame %>% 
+  filter(diff_TreeSpeciesPine) %>%
+  rename("otu"="taxon") %>%
+  left_join(TaxMatITS)
+
+ANCOM_ITS_root_no_random_df=
+  ANCOM_ITS_root_no_random$res %>%
+  as.data.frame %>%
+  filter(diff_TreeSpeciesPine) %>%
+  rename("otu"="taxon") %>%
+  left_join(TaxMatITS)
+```
+
 ## Create Summary Data Table
 Table just has counts of # OTUs differentially abundant in each test
 
 Table shows there are VERY few OTUs differing by species in Linda tests. Just 1 significant OTU across the 4 tests
 ```{r, warning=FALSE, message=FALSE}
 
-n_ITS_root=
+n_Linda_ITS_root=
   Linda_ITS_root_df %>%
   filter(reject) %>%
   nrow
 
-n_ITS_soil=
+n_Linda_ITS_soil=
   Linda_ITS_soil_df %>%
   filter(reject) %>%
   nrow
 
-n_16S_root=
+n_Linda_16S_root=
   Linda_16S_root_df %>%
   filter(reject) %>%
   nrow
 
-n_16S_soil=
+n_Linda_16S_soil=
   Linda_16S_soil_df %>%
   filter(reject) %>%
   nrow
 
-n_ITS_root_no_random=
+n_Linda_ITS_root_no_random=
   Linda_ITS_root_no_random_df %>%
   filter(reject) %>%
   nrow
 
-n_ITS_soil_no_random=
+n_Linda_ITS_soil_no_random=
   Linda_ITS_soil_no_random_df %>%
   filter(reject) %>%
   nrow
 
-n_16S_root_no_random=
+n_Linda_16S_root_no_random=
   Linda_16S_root_no_random_df %>%
   filter(reject) %>%
   nrow
 
-n_16S_soil_no_random=
+n_Linda_16S_soil_no_random=
   Linda_16S_soil_no_random_df %>%
   filter(reject) %>%
   nrow
 
 
 LINDA_summary=
-  data.frame(Locus=c("ITS", "ITS", "16S", "16S", 
-                     "ITS", "ITS", "16S", "16S"),
-             SampleType=c("Root","Soil","Root","Soil",
-                          "Root","Soil","Root","Soil"),
-             ModelType=c("RandomEffect","RandomEffect","RandomEffect","RandomEffect",
-                         "NoRandomEffect","NoRandomEffect","NoRandomEffect","NoRandomEffect"),
-             n_taxa_significant=c(n_ITS_root, n_ITS_soil, n_16S_root, n_16S_soil,
-                                  n_ITS_root_no_random, n_ITS_soil_no_random, n_16S_root_no_random, n_16S_soil_no_random))
+  data.frame(Locus=c("ITS", "ITS", "16S", "16S"),
+             SampleType=c("Root","Soil","Root","Soil"),
+             n_LINDA_no_random=c(n_LINDA_ITS_root_no_random, n_LINDA_ITS_soil_no_random, n_LINDA_16S_root_no_random, n_LINDA_16S_soil_no_random),
+             n_LINDA_random=c(n_LINDA_ITS_root, n_LINDA_ITS_soil, n_LINDA_16S_root, n_LINDA_16S_soil),
+             n_ANCOM_no_random=c(n_ANCOM_ITS_root_no_random, n_ANCOM_ITS_soil_no_random, n_ANCOM_16S_root_no_random, n_ANCOM_16S_soil_no_random),
+             n_ANCOM_random=c(n_ANCOM_ITS_root, n_ANCOM_ITS_soil, n_ANCOM_16S_root, n_ANCOM_16S_soil))
 
 LINDA_summary
 ```
