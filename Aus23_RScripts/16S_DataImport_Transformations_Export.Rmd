@@ -208,6 +208,8 @@ OTU tables and distance matrices are saved as csv's so that they can easily be u
 ```{r, warning=FALSE, message=FALSE}
 filepath="../Aus23_16S_Metabarcoding/OTUTables/"
 
+write.csv(OtuMat16S_filter, paste(filepath, "OtuMat16S_filter.csv", sep=""))
+
 write.csv(OtuMat16S_rare, paste(filepath, "OtuMat16S_rare.csv", sep=""))
 write.csv(OtuMat16S_rare_rel, paste(filepath, "OtuMat16S_rare_rel.csv", sep=""))
 write.csv(OtuMat16S_rare_pooled, paste(filepath, "OtuMat16S_rare_pooled.csv", sep=""))
@@ -215,7 +217,6 @@ write.csv(OtuMat16S_rare_pooled_rel, paste(filepath, "OtuMat16S_rare_pooled_rel.
 
 write.csv(OtuMat16S_rel, paste(filepath, "OtuMat16S_rel.csv", sep=""))
 write.csv(OtuMat16S_pooled_rel, paste(filepath, "OtuMat16S_pooled_rel.csv", sep=""))
-
 
 write.csv(as.matrix(Aitchison_unpooled_rel_16S), paste(filepath, "Aitchison_unpooled_rel_16S.csv", sep=""))
 write.csv(as.matrix(Aitchison_pooled_rel_16S), paste(filepath, "Aitchison_pooled_rel_16S.csv", sep=""))

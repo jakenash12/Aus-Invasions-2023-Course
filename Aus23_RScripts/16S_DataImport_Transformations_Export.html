@@ -564,17 +564,19 @@ dataframe and export it as a summary table</p>
 easily be used in other analyses.</p>
 <pre class="r"><code>filepath=&quot;../Aus23_16S_Metabarcoding/OTUTables/&quot;
 
-write.csv(OtuMat16S_rare, paste(filepath, &quot;OtuMat16S_rare.csv&quot;, sep=&quot;&quot;))
-write.csv(OtuMat16S_rare_rel, paste(filepath, &quot;OtuMat16S_rare_rel.csv&quot;, sep=&quot;&quot;))
-write.csv(OtuMat16S_rare_pooled, paste(filepath, &quot;OtuMat16S_rare_pooled.csv&quot;, sep=&quot;&quot;))
-write.csv(OtuMat16S_rare_pooled_rel, paste(filepath, &quot;OtuMat16S_rare_pooled_rel.csv&quot;, sep=&quot;&quot;))
+write_csv(OtuMat16S_filter, paste(filepath, &quot;OtuMat16S_filter.csv&quot;, sep=&quot;&quot;))
 
-write.csv(OtuMat16S_rel, paste(filepath, &quot;OtuMat16S_rel.csv&quot;, sep=&quot;&quot;))
-write.csv(OtuMat16S_pooled_rel, paste(filepath, &quot;OtuMat16S_pooled_rel.csv&quot;, sep=&quot;&quot;))
+write_csv(OtuMat16S_rare, paste(filepath, &quot;OtuMat16S_rare.csv&quot;, sep=&quot;&quot;))
+write_csv(OtuMat16S_rare_rel, paste(filepath, &quot;OtuMat16S_rare_rel.csv&quot;, sep=&quot;&quot;))
+write_csv(OtuMat16S_rare_pooled, paste(filepath, &quot;OtuMat16S_rare_pooled.csv&quot;, sep=&quot;&quot;))
+write_csv(OtuMat16S_rare_pooled_rel, paste(filepath, &quot;OtuMat16S_rare_pooled_rel.csv&quot;, sep=&quot;&quot;))
+
+write_csv(OtuMat16S_rel, paste(filepath, &quot;OtuMat16S_rel.csv&quot;, sep=&quot;&quot;))
+write_csv(OtuMat16S_pooled_rel, paste(filepath, &quot;OtuMat16S_pooled_rel.csv&quot;, sep=&quot;&quot;))
 
 
-write.csv(as.matrix(Aitchison_unpooled_rel_16S), paste(filepath, &quot;Aitchison_unpooled_rel_16S.csv&quot;, sep=&quot;&quot;))
-write.csv(as.matrix(Aitchison_pooled_rel_16S), paste(filepath, &quot;Aitchison_pooled_rel_16S.csv&quot;, sep=&quot;&quot;))</code></pre>
+write_csv(as.data.frame(as.matrix(Aitchison_unpooled_rel_16S)), paste(filepath, &quot;Aitchison_unpooled_rel_16S.csv&quot;, sep=&quot;&quot;))
+write_csv(as.data.frame(as.matrix(Aitchison_pooled_rel_16S)), paste(filepath, &quot;Aitchison_pooled_rel_16S.csv&quot;, sep=&quot;&quot;))</code></pre>
 </div>
 
 
