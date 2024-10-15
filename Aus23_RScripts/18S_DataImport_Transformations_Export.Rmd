@@ -6,12 +6,14 @@ date: "2024-10-01"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+require("knitr")
+opts_knit$set(root.dir = "/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding")
 ```
+
 #Set WD
 ```{r}
 setwd("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding")
 ```
-
 
 #Load Required Packages
 ```{r}
@@ -25,7 +27,7 @@ library(readxl)
 #Import taxonomy file
 ```{r}
 Tax18S = read.csv("AMF_Taxonomy_FixedFormat.csv") %>%
-  rename("Feature.ID"="#OTU ID")
+  rename("#OTU ID"="Feature.ID")
 ```
 
 #Import ASV table
@@ -38,11 +40,11 @@ OtuMat18S = read_tsv("AMF_FeatureTable.tsv") %>%
 ```{r}
 Metadata_18S=
   read_tsv("MetabarcodingMetadata.txt") %>%
-  rename("sample-id"="SampleID") %>% #rename SampleID column
+  rename("SampleID"="sample-id") %>% #rename SampleID column
   mutate(TreeSampleType = gsub("-.", "", SampleID)) #generate new column with Tree ID and sample type concatenated
 
 Metadata_18S_pooled=
-  Metadata_ITS %>%
+  Metadata_18S %>%
   distinct(TreeSampleType, .keep_all = TRUE)
 ```
 
@@ -156,6 +158,8 @@ AlphaDiv_pooled_18S=
 ```{r}
 filepath="../Aus23_18S_Metabarcoding/OTUTables/"
 
+write.csv(AlphaDiv_18S, paste(filepath, "AlphaDiv18S.csv", sep=""))
+write.csv(AlphaDiv_pooled_18S, paste(filepath, "AlphaDiv18S_pooled.csv", sep=""))
 write.csv(OtuMat18S_rare, paste(filepath, "OtuMat18S_rare.csv", sep=""))
 write.csv(OtuMat18S_rare_rel, paste(filepath, "OtuMat18S_rare_rel.csv", sep=""))
 write.csv(OtuMat18S_rare_pooled, paste(filepath, "OtuMat18S_rare_pooled.csv", sep=""))
