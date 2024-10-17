@@ -195,10 +195,102 @@ AlphaDiv_pooled_16S=
 
 ```
 
-## Generates guild summaries based on fungal traits guild assignments
-Need to finish this...
-Will merge this with the alpha diversity dataframe and export it as a summary table
+## Generates guild summaries based on bacterial copiotroph/oligotroph assignments
+Generate relative abundances of guild by sample (using the relative abundance OTU table) and generate richness of each guild by sample (using the rarefied OTU table). (This chunk edited by Corinne on 10/17/24)
 ```{r, warning=FALSE, message=FALSE}
+
+# read in taxonomy appended with guilds
+TaxGuild <- read.csv("../Aus23_16S_Metabarcoding/Taxonomy/Aus23_16S_SilvaTaxonomy_FunctionalGuilds.csv", row.names=1)[c(6,21)]
+
+############# UN-POOLED DATA ########################
+
+# Calculate relative abundances of copiotrophs and oligotrophs
+guild_summary_16S=
+  OtuMat16S_rel %>%
+  t %>%
+  as.data.frame %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxGuild, by="otu") %>%
+  mutate(guild_edited=
+           case_when(
+             Copio_oligo=="Oligotroph" ~ "Oligotroph_rel_abund",
+             Copio_oligo=="Copiotroph" ~ "Copiotroph_rel_abund",
+             )) %>%
+  select(-Copio_oligo, -otu) %>% 
+  group_by(guild_edited) %>% 
+  summarise(across(everything(), sum, na.rm = TRUE))
+guild_summary_16S[3,1] <- "OtherBacteria_rel_abund"
+guild_summary_16S_final <- guild_summary_16S[,c(2:ncol(guild_summary_16S))]
+rownames(guild_summary_16S_final) <- guild_summary_16S$guild_edited
+guild_summary_16S_final <- as.data.frame(t(guild_summary_16S_final))
+
+
+# Calculate richness of copiotrophs and oligotrophs
+guild_richness_16S=
+  OtuMat16S_rare %>%
+  mutate_all(~ ifelse(. > 0, 1, .)) %>% #converts dataframe to presence/absense. Present=1, Absent=0
+  t %>%
+  as.data.frame %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxGuild, by="otu") %>%
+  mutate(guild_edited=
+           case_when(
+             Copio_oligo=="Oligotroph" ~ "Oligotroph_richness",
+             Copio_oligo=="Copiotroph" ~ "Copiotroph_richness",
+             )) %>%
+  select(-Copio_oligo, -otu) %>% 
+  group_by(guild_edited) %>% 
+  summarise(across(everything(), sum, na.rm = TRUE))
+    
+guild_richness_16S[3,1] <- "OtherBacteria_richness"
+guild_richness_16S_final <- guild_richness_16S[,c(2:ncol(guild_richness_16S))]
+rownames(guild_richness_16S_final) <- guild_richness_16S$guild_edited
+guild_richness_16S_final <- as.data.frame(t(guild_richness_16S_final))
+
+############# POOLED DATA ########################
+
+# Calculate relative abundances of copiotrophs and oligotrophs
+guild_summary_16S_pool=
+  OtuMat16S_pooled_rel %>%
+  t %>%
+  as.data.frame %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxGuild, by="otu") %>%
+  mutate(guild_edited=
+           case_when(
+             Copio_oligo=="Oligotroph" ~ "Oligotroph_rel_abund",
+             Copio_oligo=="Copiotroph" ~ "Copiotroph_rel_abund",
+             )) %>%
+  select(-Copio_oligo, -otu) %>% 
+  group_by(guild_edited) %>% 
+  summarise(across(everything(), sum, na.rm = TRUE))
+guild_summary_16S_pool[3,1] <- "OtherBacteria_rel_abund"
+guild_summary_16S_pool_final <- guild_summary_16S_pool[,c(2:ncol(guild_summary_16S_pool))]
+rownames(guild_summary_16S_pool_final) <- guild_summary_16S_pool$guild_edited
+guild_summary_16S_pool_final <- as.data.frame(t(guild_summary_16S_pool_final))
+
+
+# Calculate richness of copiotrophs and oligotrophs
+guild_richness_16S_pool=
+  OtuMat16S_rare_pooled %>%
+  mutate_all(~ ifelse(. > 0, 1, .)) %>% #converts dataframe to presence/absense. Present=1, Absent=0
+  t %>%
+  as.data.frame %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxGuild, by="otu") %>%
+  mutate(guild_edited=
+           case_when(
+             Copio_oligo=="Oligotroph" ~ "Oligotroph_richness",
+             Copio_oligo=="Copiotroph" ~ "Copiotroph_richness",
+             )) %>%
+  select(-Copio_oligo, -otu) %>% 
+  group_by(guild_edited) %>% 
+  summarise(across(everything(), sum, na.rm = TRUE))
+    
+guild_richness_16S_pool[3,1] <- "OtherBacteria_richness"
+guild_richness_16S_pool_final <- guild_richness_16S_pool[,c(2:ncol(guild_richness_16S_pool))]
+rownames(guild_richness_16S_pool_final) <- guild_richness_16S_pool$guild_edited
+guild_richness_16S_pool_final <- as.data.frame(t(guild_richness_16S_pool_final))
 
 
 ```
@@ -220,4 +312,9 @@ write.csv(OtuMat16S_pooled_rel, paste(filepath, "OtuMat16S_pooled_rel.csv", sep=
 
 write.csv(as.matrix(Aitchison_unpooled_rel_16S), paste(filepath, "Aitchison_unpooled_rel_16S.csv", sep=""))
 write.csv(as.matrix(Aitchison_pooled_rel_16S), paste(filepath, "Aitchison_pooled_rel_16S.csv", sep=""))
+
+write.csv(guild_summary_16S_final, paste(filepath, "Guild_rel_abunds_unpooled_16S.csv", sep=""))
+write.csv(guild_summary_16S_pool_final, paste(filepath, "Guild_rel_abunds_pooled_16S.csv", sep=""))
+write.csv(guild_richness_16S_final, paste(filepath, "Guild_richness_unpooled_16S.csv", sep=""))
+write.csv(guild_richness_16S_pool_final, paste(filepath, "Guild_richness_pooled_16S.csv", sep=""))
 ```
