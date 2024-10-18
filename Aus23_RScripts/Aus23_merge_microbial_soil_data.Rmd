@@ -26,9 +26,12 @@ bac_guild_rich_pool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/Guild_rich
 
 #bacterial diversity
 
-#fungal guilds
 
-#fungal diversity
+#fungalguild abundances and diversity
+fungal_guild_div <- read.csv("../Aus23_ITS_Metabarcoding/OTUTables/AlphaDivGuildsITS.csv", row.names=1)
+
+#AMF diversity
+amf_div <- read.csv("../Aus23_18S_Metabarcoding/OTUTables/AlphaDiv18S_pooled.csv", row.names=1)
 
 
 ```
