@@ -1,0 +1,49 @@
+---
+title: "Aus23_Microbial_soil_data.Rmd"
+output: html_document
+date: "2024-10-17"
+---
+
+This is the code to merge the ITS and 16S data summary statistics with the soil data.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Read in all the dataframes
+```{r}
+###soil###
+CN <- read.csv("../Soil_data/Aus_IRES_totCN.csv")
+erg_P <- read.csv("../Soil_data/Aus_IRES_ergosterol_P.csv")
+
+###microbial###
+
+#bacterial guilds
+bac_guild_abund_unpool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/Guild_rel_abunds_unpooled_16S.csv")
+bac_guild_abund_pool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/Guild_rel_abunds_pooled_16S.csv")
+bac_guild_rich_unpool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/Guild_richness_unpooled_16S.csv")
+bac_guild_rich_pool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/Guild_richness_pooled_16S.csv")
+
+#bacterial diversity
+
+
+#fungalguild abundances and diversity
+fungal_guild_div <- read.csv("../Aus23_ITS_Metabarcoding/OTUTables/AlphaDivGuildsITS.csv", row.names=1)
+
+#AMF diversity
+amf_div <- read.csv("../Aus23_18S_Metabarcoding/OTUTables/AlphaDiv18S_pooled.csv", row.names=1)
+
+
+```
+
+Format sample names
+```{r}
+
+
+```
+
+Merge all datasets together
+```{r}
+
+```
+

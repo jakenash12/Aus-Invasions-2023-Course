@@ -1,0 +1,176 @@
+---
+title: "LinDA_DifferentialAbundance_18S"
+output: html_document
+date: "2024-10-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("knitr")
+opts_knit$set(root.dir = "/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding")
+```
+
+These scripts use LinDA to perform differential abundance testing to test for effects of tree species on OTU abundance. Tests are performed separately for root and soil samples.
+
+The LinDA method was done both with and without the random effect of Tree individual to test how it affected statistical power.
+
+#Load required packages
+*Note that the MicrobiomeStat package contains the code for LINDA
+```{r}
+library(MicrobiomeStat)
+library(dplyr)
+library(magrittr)
+library(tibble)
+library(ANCOMBC)
+library(tidyverse)
+library(readxl)
+```
+
+#Reads in raw 18S OTU tables & metadata
+```{r}
+OtuMat18S = read_tsv("AMF_FeatureTable.tsv") %>%
+  column_to_rownames("#OTU ID")
+
+Metadata_ITS=
+  read_tsv("../Aus23_16S_Metabarcoding/MetabarcodingMetadata.txt") %>%
+  slice(-1) %>% #remove the comment row 
+  rename("SampleID"=`sample-id`) %>% #rename SampleID column
+  mutate(TreeSampleType = gsub("-.", "", SampleID)) #generate new column with Tree ID and sample type concatenated
+
+TaxMat18S = read.csv("AMF_Taxonomy_SplitFormat.csv") %>%
+  rename("otu"="Feature.ID")
+```
+
+#LinDA test for 18S root samples
+```{r}
+#create ITS OTU table just with Root samples
+OtuMat18S_root= 
+  OtuMat18S%>% 
+  select(contains("Root")) 
+
+#create metadata table just with root samples in ITS otu table
+Metadata_18S_root=
+  Metadata_18S %>%
+  filter(SampleID %in% colnames(OtuMat18S_root))
+
+#runs LinDA test for effect of tree species, using tree individual as random effects
+Linda_18S_root =
+  linda(
+    feature.dat=OtuMat18S_root,
+    meta.dat=Metadata_18S_root,
+    formula='~Species + (1|TreeSampleType)',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
+#runs LinDA test for effect of tree species with no random effect
+Linda_18S_root_no_random =
+  linda(
+    feature.dat=OtuMat18S_root,
+    meta.dat=Metadata_18S_root,
+    formula='~Species',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
+#creates a formatted dataframe for 18S root samples LinDA
+Linda_18S_root_df=
+  as.data.frame(Linda_18S_root$output$SpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMat18S)
+
+Linda_18S_root_no_random_df=
+  as.data.frame(Linda_18S_root_no_random$output$SpeciesPine) %>%
+    mutate(otu=rownames(.)) %>%
+  left_join(TaxMat18S)
+```
+
+#LinDA test on 18S soil samples
+```{r}
+#create 18S OTU table just with Soil samples
+OtuMat18S_soil= 
+  OtuMat18S %>% 
+  select(contains("Soil")) 
+  
+#create metadata table just with soil samples in 18S otu table
+Metadata_18S_soil=
+  Metadata_ITS %>%
+  filter(SampleID %in% colnames(OtuMat18S_soil))
+
+#runs LinDA test for effect of tree species, using tree individual as random effects
+Linda_18S_soil =
+  linda(
+    feature.dat=OtuMat18S_soil,
+    meta.dat=Metadata_18S_soil,
+    formula='~TreeSpecies + (1|TreeSampleType)',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
+#runs LinDA test for effect of tree species with no random effect
+Linda_18S_soil_no_random =
+  linda(
+    feature.dat=OtuMat18S_soil,
+    meta.dat=Metadata_18S_soil,
+    formula='~TreeSpecies',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="fdr",
+    alpha=0.05)
+
+#creates a formatted dataframe for ITS root samples LinDA
+Linda_18S_soil_df=
+  as.data.frame(Linda_18S_soil$output$TreeSpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMat18S)
+
+Linda_18S_soil_no_random_df=
+  as.data.frame(Linda_18S_soil_no_random$output$TreeSpeciesPine) %>%
+  mutate(otu=rownames(.)) %>%
+  left_join(TaxMat18S)
+```
+
+#Create table of differentially abundant taxa
+```{r}
+n_18S_root=
+  Linda_18S_root_df %>%
+  filter(reject) %>%
+  nrow
+
+n_18S_soil=
+  Linda_18S_soil_df %>%
+  filter(reject) %>%
+  nrow
+
+n_18S_root_no_random=
+  Linda_18S_root_no_random_df %>%
+  filter(reject) %>%
+  nrow
+
+n_18S_soil_no_random=
+  Linda_18S_soil_no_random_df %>%
+  filter(reject) %>%
+  nrow
+
+LINDA_summary=
+  data.frame(Locus=c("18S", "18S", "18S", "18S"),
+             SampleType=c("Root","Soil","Root","Soil"),
+             ModelType=c("RandomEffect","RandomEffect","NoRandomEffect","NoRandomEffect"),
+             n_taxa_significant=c(n_18S_root, n_18S_soil,
+                                  n_18S_root_no_random, n_18S_soil_no_random))
+
+LINDA_summary
+
+```
+
