@@ -43,7 +43,12 @@ OtuMat16S=
 Metadata_16S=
   read_tsv("../Aus23_16S_Metabarcoding/MetabarcodingMetadata.txt") %>%
   slice(-1) %>% #remove the comment row 
-  rename("SampleID"=`sample-id`) #rename SampleID column
+  rename("SampleID"=`sample-id`) %>% #rename SampleID column
+    mutate(TreeSampleType = gsub("-.", "", SampleID)) #generate new column with Tree ID and sample type concatenated
+
+Metadata_16S_pooled=
+  Metadata_16S %>%
+  distinct(TreeSampleType, .keep_all = TRUE)
 ```
 
 ## Removes ASVs that were identified as chloroplast/mitochondria
@@ -190,8 +195,8 @@ AlphaDiv_pooled_16S=
              Simpson=diversity(OtuMat16S_rare_pooled, index="simpson"),
              Invsimpson=diversity(OtuMat16S_rare_pooled, index="invsimpson"),
              Richness=specnumber(OtuMat16S_rare_pooled)) %>%
-  mutate(SampleID=rownames(.)) %>%
-  left_join(Metadata_16S)
+  mutate(TreeSampleType=rownames(.)) %>%
+  left_join(Metadata_16S_pooled)
 
 ```
 
@@ -295,6 +300,21 @@ guild_richness_16S_pool_final <- as.data.frame(t(guild_richness_16S_pool_final))
 
 ```
 
+## Merging richness with guild summary data
+```{r, warning=FALSE, message=FALSE}
+AlphaDivGuilds16S=
+  AlphaDiv_16S %>%
+  left_join((guild_summary_16S_final %>% mutate(SampleID=rownames(.)))) %>%
+  left_join((guild_richness_16S_final %>% mutate(SampleID=rownames(.))))
+
+AlphaDivGuilds16S_pooled=
+  AlphaDiv_pooled_16S %>%
+  left_join((guild_summary_16S_pool_final %>% mutate(TreeSampleType=rownames(.)))) %>%
+  left_join((guild_richness_16S_pool_final %>% mutate(TreeSampleType=rownames(.))))
+
+```
+
+
 ## Saving/exporting files as csv's
 OTU tables and distance matrices are saved as csv's so that they can easily be used in other analyses. 
 ```{r, warning=FALSE, message=FALSE}
@@ -314,12 +334,8 @@ write.csv(OtuMat16S_pooled_rel, paste(filepath, "OtuMat16S_pooled_rel.csv", sep=
 write.csv(as.matrix(Aitchison_unpooled_rel_16S), paste(filepath, "Aitchison_unpooled_rel_16S.csv", sep=""))
 write.csv(as.matrix(Aitchison_pooled_rel_16S), paste(filepath, "Aitchison_pooled_rel_16S.csv", sep=""))
 
-# Alpha diversity
+# Alpha diversity + guild data
+write.csv(AlphaDivGuilds16S, paste(filepath, "AlphaDivGuilds16S.csv", sep=""))
+write.csv(AlphaDivGuilds16S_pooled, paste(filepath, "AlphaDivGuilds16S_pooled.csv", sep=""))
 
-
-# Guild abundance and  diversity metrics
-write.csv(guild_summary_16S_final, paste(filepath, "Guild_rel_abunds_unpooled_16S.csv", sep=""))
-write.csv(guild_summary_16S_pool_final, paste(filepath, "Guild_rel_abunds_pooled_16S.csv", sep=""))
-write.csv(guild_richness_16S_final, paste(filepath, "Guild_richness_unpooled_16S.csv", sep=""))
-write.csv(guild_richness_16S_pool_final, paste(filepath, "Guild_richness_pooled_16S.csv", sep=""))
 ```

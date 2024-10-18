@@ -395,7 +395,12 @@ TaxMat16S_SILVA=
 <pre class="r"><code>Metadata_16S=
   read_tsv(&quot;../Aus23_16S_Metabarcoding/MetabarcodingMetadata.txt&quot;) %&gt;%
   slice(-1) %&gt;% #remove the comment row 
-  rename(&quot;SampleID&quot;=`sample-id`) #rename SampleID column</code></pre>
+  rename(&quot;SampleID&quot;=`sample-id`) %&gt;% #rename SampleID column
+    mutate(TreeSampleType = gsub(&quot;-.&quot;, &quot;&quot;, SampleID)) #generate new column with Tree ID and sample type concatenated
+
+Metadata_16S_pooled=
+  Metadata_16S %&gt;%
+  distinct(TreeSampleType, .keep_all = TRUE)</code></pre>
 </div>
 <div id="removes-asvs-that-were-identified-as-chloroplastmitochondria" class="section level2">
 <h2>Removes ASVs that were identified as chloroplast/mitochondria</h2>
@@ -549,14 +554,120 @@ AlphaDiv_pooled_16S=
              Simpson=diversity(OtuMat16S_rare_pooled, index=&quot;simpson&quot;),
              Invsimpson=diversity(OtuMat16S_rare_pooled, index=&quot;invsimpson&quot;),
              Richness=specnumber(OtuMat16S_rare_pooled)) %&gt;%
-  mutate(SampleID=rownames(.)) %&gt;%
-  left_join(Metadata_16S)</code></pre>
+  mutate(TreeSampleType=rownames(.)) %&gt;%
+  left_join(Metadata_16S_pooled)</code></pre>
 </div>
-<div id="generates-guild-summaries-based-on-fungal-traits-guild-assignments" class="section level2">
-<h2>Generates guild summaries based on fungal traits guild
+<div id="generates-guild-summaries-based-on-bacterial-copiotropholigotroph-assignments" class="section level2">
+<h2>Generates guild summaries based on bacterial copiotroph/oligotroph
 assignments</h2>
-<p>Need to finish this… Will merge this with the alpha diversity
-dataframe and export it as a summary table</p>
+<p>Generate relative abundances of guild by sample (using the relative
+abundance OTU table) and generate richness of each guild by sample
+(using the rarefied OTU table). (This chunk edited by Corinne on
+10/17/24)</p>
+<pre class="r"><code># read in taxonomy appended with guilds
+TaxGuild &lt;- read.csv(&quot;../Aus23_16S_Metabarcoding/Taxonomy/Aus23_16S_SilvaTaxonomy_FunctionalGuilds.csv&quot;, row.names=1)[c(6,21)]
+
+############# UN-POOLED DATA ########################
+
+# Calculate relative abundances of copiotrophs and oligotrophs
+guild_summary_16S=
+  OtuMat16S_rel %&gt;%
+  t %&gt;%
+  as.data.frame %&gt;%
+  mutate(otu=rownames(.)) %&gt;%
+  left_join(TaxGuild, by=&quot;otu&quot;) %&gt;%
+  mutate(guild_edited=
+           case_when(
+             Copio_oligo==&quot;Oligotroph&quot; ~ &quot;Oligotroph_rel_abund&quot;,
+             Copio_oligo==&quot;Copiotroph&quot; ~ &quot;Copiotroph_rel_abund&quot;,
+             )) %&gt;%
+  select(-Copio_oligo, -otu) %&gt;% 
+  group_by(guild_edited) %&gt;% 
+  summarise(across(everything(), sum, na.rm = TRUE))
+guild_summary_16S[3,1] &lt;- &quot;OtherBacteria_rel_abund&quot;
+guild_summary_16S_final &lt;- guild_summary_16S[,c(2:ncol(guild_summary_16S))]
+rownames(guild_summary_16S_final) &lt;- guild_summary_16S$guild_edited
+guild_summary_16S_final &lt;- as.data.frame(t(guild_summary_16S_final))
+
+
+# Calculate richness of copiotrophs and oligotrophs
+guild_richness_16S=
+  OtuMat16S_rare %&gt;%
+  mutate_all(~ ifelse(. &gt; 0, 1, .)) %&gt;% #converts dataframe to presence/absense. Present=1, Absent=0
+  t %&gt;%
+  as.data.frame %&gt;%
+  mutate(otu=rownames(.)) %&gt;%
+  left_join(TaxGuild, by=&quot;otu&quot;) %&gt;%
+  mutate(guild_edited=
+           case_when(
+             Copio_oligo==&quot;Oligotroph&quot; ~ &quot;Oligotroph_richness&quot;,
+             Copio_oligo==&quot;Copiotroph&quot; ~ &quot;Copiotroph_richness&quot;,
+             )) %&gt;%
+  select(-Copio_oligo, -otu) %&gt;% 
+  group_by(guild_edited) %&gt;% 
+  summarise(across(everything(), sum, na.rm = TRUE))
+    
+guild_richness_16S[3,1] &lt;- &quot;OtherBacteria_richness&quot;
+guild_richness_16S_final &lt;- guild_richness_16S[,c(2:ncol(guild_richness_16S))]
+rownames(guild_richness_16S_final) &lt;- guild_richness_16S$guild_edited
+guild_richness_16S_final &lt;- as.data.frame(t(guild_richness_16S_final))
+
+############# POOLED DATA ########################
+
+# Calculate relative abundances of copiotrophs and oligotrophs
+guild_summary_16S_pool=
+  OtuMat16S_pooled_rel %&gt;%
+  t %&gt;%
+  as.data.frame %&gt;%
+  mutate(otu=rownames(.)) %&gt;%
+  left_join(TaxGuild, by=&quot;otu&quot;) %&gt;%
+  mutate(guild_edited=
+           case_when(
+             Copio_oligo==&quot;Oligotroph&quot; ~ &quot;Oligotroph_rel_abund&quot;,
+             Copio_oligo==&quot;Copiotroph&quot; ~ &quot;Copiotroph_rel_abund&quot;,
+             )) %&gt;%
+  select(-Copio_oligo, -otu) %&gt;% 
+  group_by(guild_edited) %&gt;% 
+  summarise(across(everything(), sum, na.rm = TRUE))
+guild_summary_16S_pool[3,1] &lt;- &quot;OtherBacteria_rel_abund&quot;
+guild_summary_16S_pool_final &lt;- guild_summary_16S_pool[,c(2:ncol(guild_summary_16S_pool))]
+rownames(guild_summary_16S_pool_final) &lt;- guild_summary_16S_pool$guild_edited
+guild_summary_16S_pool_final &lt;- as.data.frame(t(guild_summary_16S_pool_final))
+
+
+# Calculate richness of copiotrophs and oligotrophs
+guild_richness_16S_pool=
+  OtuMat16S_rare_pooled %&gt;%
+  mutate_all(~ ifelse(. &gt; 0, 1, .)) %&gt;% #converts dataframe to presence/absense. Present=1, Absent=0
+  t %&gt;%
+  as.data.frame %&gt;%
+  mutate(otu=rownames(.)) %&gt;%
+  left_join(TaxGuild, by=&quot;otu&quot;) %&gt;%
+  mutate(guild_edited=
+           case_when(
+             Copio_oligo==&quot;Oligotroph&quot; ~ &quot;Oligotroph_richness&quot;,
+             Copio_oligo==&quot;Copiotroph&quot; ~ &quot;Copiotroph_richness&quot;,
+             )) %&gt;%
+  select(-Copio_oligo, -otu) %&gt;% 
+  group_by(guild_edited) %&gt;% 
+  summarise(across(everything(), sum, na.rm = TRUE))
+    
+guild_richness_16S_pool[3,1] &lt;- &quot;OtherBacteria_richness&quot;
+guild_richness_16S_pool_final &lt;- guild_richness_16S_pool[,c(2:ncol(guild_richness_16S_pool))]
+rownames(guild_richness_16S_pool_final) &lt;- guild_richness_16S_pool$guild_edited
+guild_richness_16S_pool_final &lt;- as.data.frame(t(guild_richness_16S_pool_final))</code></pre>
+</div>
+<div id="merging-richness-with-guild-summary-data" class="section level2">
+<h2>Merging richness with guild summary data</h2>
+<pre class="r"><code>AlphaDivGuilds16S=
+  AlphaDiv_16S %&gt;%
+  left_join((guild_summary_16S_final %&gt;% mutate(SampleID=rownames(.)))) %&gt;%
+  left_join((guild_richness_16S_final %&gt;% mutate(SampleID=rownames(.))))
+
+AlphaDivGuilds16S_pooled=
+  AlphaDiv_pooled_16S %&gt;%
+  left_join((guild_summary_16S_pool_final %&gt;% mutate(TreeSampleType=rownames(.)))) %&gt;%
+  left_join((guild_richness_16S_pool_final %&gt;% mutate(TreeSampleType=rownames(.))))</code></pre>
 </div>
 <div id="savingexporting-files-as-csvs" class="section level2">
 <h2>Saving/exporting files as csv’s</h2>
@@ -564,19 +675,23 @@ dataframe and export it as a summary table</p>
 easily be used in other analyses.</p>
 <pre class="r"><code>filepath=&quot;../Aus23_16S_Metabarcoding/OTUTables/&quot;
 
-write_csv(OtuMat16S_filter, paste(filepath, &quot;OtuMat16S_filter.csv&quot;, sep=&quot;&quot;))
+# OTU tables
+write.csv(OtuMat16S_filter, paste(filepath, &quot;OtuMat16S_filter.csv&quot;, sep=&quot;&quot;))
 
-write_csv(OtuMat16S_rare, paste(filepath, &quot;OtuMat16S_rare.csv&quot;, sep=&quot;&quot;))
-write_csv(OtuMat16S_rare_rel, paste(filepath, &quot;OtuMat16S_rare_rel.csv&quot;, sep=&quot;&quot;))
-write_csv(OtuMat16S_rare_pooled, paste(filepath, &quot;OtuMat16S_rare_pooled.csv&quot;, sep=&quot;&quot;))
-write_csv(OtuMat16S_rare_pooled_rel, paste(filepath, &quot;OtuMat16S_rare_pooled_rel.csv&quot;, sep=&quot;&quot;))
+write.csv(OtuMat16S_rare, paste(filepath, &quot;OtuMat16S_rare.csv&quot;, sep=&quot;&quot;))
+write.csv(OtuMat16S_rare_rel, paste(filepath, &quot;OtuMat16S_rare_rel.csv&quot;, sep=&quot;&quot;))
+write.csv(OtuMat16S_rare_pooled, paste(filepath, &quot;OtuMat16S_rare_pooled.csv&quot;, sep=&quot;&quot;))
+write.csv(OtuMat16S_rare_pooled_rel, paste(filepath, &quot;OtuMat16S_rare_pooled_rel.csv&quot;, sep=&quot;&quot;))
 
-write_csv(OtuMat16S_rel, paste(filepath, &quot;OtuMat16S_rel.csv&quot;, sep=&quot;&quot;))
-write_csv(OtuMat16S_pooled_rel, paste(filepath, &quot;OtuMat16S_pooled_rel.csv&quot;, sep=&quot;&quot;))
+write.csv(OtuMat16S_rel, paste(filepath, &quot;OtuMat16S_rel.csv&quot;, sep=&quot;&quot;))
+write.csv(OtuMat16S_pooled_rel, paste(filepath, &quot;OtuMat16S_pooled_rel.csv&quot;, sep=&quot;&quot;))
 
+write.csv(as.matrix(Aitchison_unpooled_rel_16S), paste(filepath, &quot;Aitchison_unpooled_rel_16S.csv&quot;, sep=&quot;&quot;))
+write.csv(as.matrix(Aitchison_pooled_rel_16S), paste(filepath, &quot;Aitchison_pooled_rel_16S.csv&quot;, sep=&quot;&quot;))
 
-write_csv(as.data.frame(as.matrix(Aitchison_unpooled_rel_16S)), paste(filepath, &quot;Aitchison_unpooled_rel_16S.csv&quot;, sep=&quot;&quot;))
-write_csv(as.data.frame(as.matrix(Aitchison_pooled_rel_16S)), paste(filepath, &quot;Aitchison_pooled_rel_16S.csv&quot;, sep=&quot;&quot;))</code></pre>
+# Alpha diversity + guild data
+write.csv(AlphaDivGuilds16S, paste(filepath, &quot;AlphaDivGuilds16S.csv&quot;, sep=&quot;&quot;))
+write.csv(AlphaDivGuilds16S_pooled, paste(filepath, &quot;AlphaDivGuilds16S_pooled.csv&quot;, sep=&quot;&quot;))</code></pre>
 </div>
 
 
