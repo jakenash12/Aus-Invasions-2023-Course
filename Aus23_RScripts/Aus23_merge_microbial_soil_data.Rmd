@@ -4,11 +4,18 @@ output: html_document
 date: "2024-10-17"
 ---
 
-This is the code to merge the ITS and 16S data summary statistics with the soil data.
+This is the code to merge the ITS and 16S data summary statistics with the soil nutrient data.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+load libraries
+```{r}
+library(tidyverse)
+library(stringr)
+```
+
 
 Read in all the dataframes
 ```{r}
@@ -18,32 +25,115 @@ erg_P <- read.csv("../Soil_data/Aus_IRES_ergosterol_P.csv")
 
 ###microbial###
 
-#bacterial guilds
-bac_guild_abund_unpool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/Guild_rel_abunds_unpooled_16S.csv")
-bac_guild_abund_pool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/Guild_rel_abunds_pooled_16S.csv")
-bac_guild_rich_unpool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/Guild_richness_unpooled_16S.csv")
-bac_guild_rich_pool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/Guild_richness_pooled_16S.csv")
+#bacterial guild abundances and diversity
+bac_metrics <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/AlphaDivGuilds16S.csv", row.names=1)
+bac_metrics_pool <- read.csv("../Aus23_16S_Metabarcoding/OTUtables/AlphaDivGuilds16S_pooled.csv", row.names=1)
 
-#bacterial diversity
-
-
-#fungalguild abundances and diversity
-fungal_guild_div <- read.csv("../Aus23_ITS_Metabarcoding/OTUTables/AlphaDivGuildsITS.csv", row.names=1)
+#fungal guild abundances and diversity
+fungal_metrics <- read.csv("../Aus23_ITS_Metabarcoding/OTUTables/AlphaDivGuildsITS.csv", row.names=1)
+fungal_metrics_pool <- read.csv("../Aus23_ITS_Metabarcoding/OTUTables/AlphaDivGuildsITS_pooled.csv", row.names=1)
 
 #AMF diversity
-amf_div <- read.csv("../Aus23_18S_Metabarcoding/OTUTables/AlphaDiv18S_pooled.csv", row.names=1)
-
+amf_metrics <- read.csv("../Aus23_18S_Metabarcoding/OTUTables/AlphaDiv18S.csv", row.names=1)
+amf_metrics_pool <- read.csv("../Aus23_18S_Metabarcoding/OTUTables/AlphaDiv18S_pooled.csv", row.names=1)
 
 ```
 
-Format sample names
+Create a pooled version of the total CN dataset that averages measurements by tree ID
 ```{r}
-
+# create a unique tree ID
+CN$treeName <- str_sub(CN$Sample, 1, 2)
+# average the two reps from each tree
+CN_pooled <- aggregate(cbind(perc_N, perc_C, CN_ratio) ~ treeName, data = CN, FUN = mean)
 
 ```
 
-Merge all datasets together
+
+Format column names and remove duplicate columns across dataframes
 ```{r}
+### rename columns
+colnames(bac_metrics)[1:4] <- c("Bac_Shannon", "Bac_Simpson", "Bac_Invsimpson", "Bac_Richness")
+colnames(bac_metrics_pool)[1:4] <- c("Bac_Shannon", "Bac_Simpson", "Bac_Invsimpson", "Bac_Richness")
+colnames(fungal_metrics)[1:4] <- c("Fungal_Shannon", "Fungal_Simpson", "Fungal_Invsimpson", "Fungal_Richness")
+colnames(fungal_metrics_pool)[1:4] <- c("Fungal_Shannon", "Fungal_Simpson", "Fungal_Invsimpson", "Fungal_Richness")
+colnames(amf_metrics)[1:4] <- c("AMF_Shannon", "AMF_Simpson", "AMF_Invsimpson", "AMF_Richness")
+colnames(amf_metrics_pool)[1:4] <- c("AMF_Shannon", "AMF_Simpson", "AMF_Invsimpson", "AMF_Richness")
+
+### remove duplicate columns 
+#unpooled
+fungal_metrics_sub <- fungal_metrics[c(1:5,12:23)]
+amf_metrics_sub <- amf_metrics[1:5]
+#pooled
+fungal_pool_sub <- fungal_metrics_pool[c(1:5, 12:23)]
+amf_pool_sub <- amf_metrics_pool[c(1:5)]
 
 ```
+
+
+Merge all microbial datasets
+```{r}
+all_microbe <- bac_metrics %>%
+  full_join(fungal_metrics_sub, by = "SampleID") %>%
+  full_join(amf_metrics_sub, by = "SampleID")
+# save microbial dataset
+write.csv(all_microbe, "../Merged_data/Aus23_All_microbial_metrics_unpooled.csv")
+
+all_microbe_pooled <- bac_metrics_pool %>%
+  full_join(fungal_pool_sub, by = "TreeSampleType") %>%
+  full_join(amf_pool_sub, by = "TreeSampleType")
+# save microbial dataset
+write.csv(all_microbe, "../Merged_data/Aus23_All_microbial_metrics_unpooled.csv")
+write.csv(all_microbe_pooled, "../Merged_data/Aus23_All_microbial_metrics_unpooled.csv")
+
+
+```
+
+Separate out root and soil data
+```{r}
+#unpooled
+all_microbe_soil <- subset(all_microbe, all_microbe$SampleType =="Soil")
+
+#pooled
+all_microbe_pool_soil <- subset(all_microbe_pooled, all_microbe_pooled$SampleType =="Soil")
+all_microbe_pool_root <- subset(all_microbe_pooled, all_microbe_pooled$SampleType =="Root")
+
+
+```
+
+
+Merge unpooled soil microbial data with total CN measurements.
+```{r}
+# format sample names to be the same in both datasets
+all_microbe_soil$Sample <- str_c(str_sub(all_microbe_soil$SampleID, 1, 2), str_sub(all_microbe_soil$SampleID, 4, 4))
+#merge dataframes
+microbes_soilCN <- merge(all_microbe_soil, CN, by = "Sample")
+#save dataframe
+write.csv(microbes_soilCN, "../Merged_data/Aus23_microbes_soilCN_unpooled.csv")
+
+```
+
+Merge pooled soil microbial data with total P, ergosterol, and total CN measurements. We use the pooled data for root DNA sequences, ergosterol, and total P because root DNA, total P, and ergosterol were measured on soils pooled across the N and S sampling points for each tree.
+```{r}
+# format sample names to be the same in all datasets
+all_microbe_pool_soil$treeName <- str_sub(all_microbe_pool_soil$SampleID, 1, 2)
+all_microbe_pool_root$treeName <- str_sub(all_microbe_pool_root$SampleID, 1, 2)
+
+#remove duplicate columns between soil and root dataframes
+microbe_pool_root_sub <- all_microbe_pool_root[c(1:4, 12:38)]
+
+# because we are merging soil and root data, append soil metric column names with "_soil" and root metrics with "_root"
+colnames(microbe_pool_root_sub)[1:30] <- paste0(colnames(microbe_pool_root_sub)[1:30], "_root")
+colnames(all_microbe_pool_soil)[c(1:4, 12:37)] <- paste0(colnames(all_microbe_pool_soil)[c(1:4, 12:37)], "_soil")
+
+#merge soil and root microbial data with soil nutrient data
+microbe_soil_pooled <- all_microbe_pool_soil %>%
+  full_join(microbe_pool_root_sub, by = "treeName") %>%
+  full_join(CN_pooled, by = "treeName") %>%
+  full_join(erg_P, by = "treeName")
+
+#remove unneccesary columns
+microbe_soil_pooled <- microbe_soil_pooled[c(1:4, 7, 12:74)]
+
+```
+
 
