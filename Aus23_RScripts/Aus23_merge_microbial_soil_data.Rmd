@@ -134,6 +134,9 @@ microbe_soil_pooled <- all_microbe_pool_soil %>%
 #remove unneccesary columns
 microbe_soil_pooled <- microbe_soil_pooled[c(1:4, 7, 12:74)]
 
+#save as csv
+write.csv(microbe_soil_pooled, "../Merged_data/Aus23_microbes_soilCNP_pooled.csv")
+
 ```
 
 
