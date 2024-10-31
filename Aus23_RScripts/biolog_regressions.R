@@ -6,6 +6,7 @@ library(ggplot2)
 library(mvabund)
 library(readxl)
 library(dplyr)
+library(tidyr)
 
 ds <- read_xlsx("Aus-Invasions-2023-Course/Merged_data/Aus23_master_pooled.xlsx")
 
@@ -47,4 +48,59 @@ ggsave("Aus-Invasions-2023-Course/Plots/Analyses/ergosterol_vs_ecm_tree.png", pl
 #Decomp 
 #Dredge package
 
-global.model <- 
+
+#Seems like fungi in roots respond more to treespecies than bacteria do, while bacteria in soil respond more to treespecies than fungi do. How to evaluate that?
+
+#Root, soil
+#Bac vs. fung
+
+long_data <- ds %>%
+  pivot_longer(
+    cols = ends_with("_soil") | ends_with("_root"),  # Select columns to pivot
+    names_to = c("Microbe_Type", "Metric", "Sample_Location"),  # New columns for Microbe_Type and Sample_Location
+    names_pattern = "([A-Za-z]+)_(.*)_(soil|root)",  # Split the name into Microbe_Type and Sample_Location
+    values_to = "Value"  # Column for the values
+  )  %>%
+  mutate(
+    Bac_or_Fung = case_when(
+      Microbe_Type %in% c("Bac", "OtherBacteria") ~ "Bacteria",
+      Microbe_Type %in% c("AMF", "ECM", "Fungal", "Endo", "Sap") ~ "Fungi",
+      TRUE ~ Microbe_Type  # Optional: set to NA for other values
+    )
+  ) %>%
+  pivot_wider(
+    names_from = Metric,  # Keep metrics as separate columns
+    values_from = Value,  # Fill new columns with corresponding values
+    values_fill = list(Value = NA)  # Fill NAs for missing values
+  )%>%
+  relocate(colnames(long_data)[51:ncol(long_data)])
+  
+long_data %>%
+  group_by(Bac_or_Fung, Sample_Location, TreeSpecies)%>%
+  summarize(n = n())
+  
+View(long_data%>%
+  filter(Bac_or_Fung == "Fungi" & Sample_Location == "soil" & TreeSpecies == "Pine")) #not sure what is up with this
+
+mod <- lm(richness ~ Bac_or_Fung:Sample_Location:TreeSpecies, long_data)
+summary(mod)
+#Bacteria in root of euc: +richness
+#fungi in root of euc: -richness
+#Bac in soil around euc: +richness, more so than in root (x2)
+#Fungi in soil around euc: +richness (flipped sign from root)
+
+#Bac in root of pine: +richness
+#Fungi in root of pine: -richness, bigger response than in euc roots
+#Bac in soil around pine: + richness (more so than in root, 1.5x)
+
+long_data %>%
+  filter(Bac_or_Fung %in% c("Bacteria", "Fungi"))%>%
+  ggplot(aes(y = Richness, x = TreeSpecies, fill =Sample_Location ))+
+  geom_boxplot()+
+  facet_grid(~Bac_or_Fung)
+#not much to visualize
+
+mod <- lm(abund ~ Bac_or_Fung:Sample_Location + TreeSpecies, long_data)
+summary(mod)
+
+mod <- lm(Richness ~ Bac_or_Fung*Sample_Location*TreeSpecies + soil_moisture, long_data)
