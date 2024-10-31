@@ -4,29 +4,47 @@
 
 library(ggplot2)
 library(mvabund)
+library(readxl)
+library(dplyr)
 
-ds <- read.csv("Aus23_CNP_pooled_biolog.csv")
+ds <- read_xlsx("Aus-Invasions-2023-Course/Merged_data/Aus23_master_pooled.xlsx")
 
+theme_set(theme_bw())
 
-# Gadgil effect -----------------------------------------------------------
+# Litter decomp -----------------------------------------------------------
 #How does ECM affect litter decomp in the two types of soils?
 
-mod <- lm(N.Acetyl.D.Glucosamine ~ ECM_richness_soil + perc_N + ergosterol + TreeSpecies, ds)
+mod <- lm(litter_depth ~ soil_moisture + ECM_richness_soil*TreeSpecies, ds)
 summary(mod)
+#Litter depth is higher when tree species is pine. Litter depth higher when soil moisture is higher.  Interaction term of ECM richness of soil and tree species pine leads causes small decreases in litter depth.
 
-mod <- lm(ergosterol ~ ECM_abund_soil + perc_N + ergosterol + TreeSpecies, ds)
+plot <- ds %>%
+  ggplot(aes(y = litter_depth, x = ECM_richness_soil)) +
+  geom_point(aes(color = soil_moisture)) +
+  geom_smooth(aes(group = TreeSpecies), method = "glm", color = "black") +
+  scale_color_gradient(low = "lightblue", high = "darkblue", name = "Soil Moisture")+
+  facet_grid(~TreeSpecies)+
+  labs(y = "Litter Depth (cm)", x  = "ECM Richness (soil)")
+
+ggsave("Aus-Invasions-2023-Course/Plots/Analyses/litterdepth_vs_ecm_moisture_tree.png", plot = plot, dpi = 500, width = 5, heigh = 3, units = "in")
+
+mod <- lm(ergosterol ~ ECM_abund_soil + TreeSpecies, ds)
 summary(mod)
-#interesting... mpisture should be in this too
+#Interaction term is not significant. ECM abundance in soil seems to be a massive part of the ergosterol. Ergosterol also higher around pines. 
 
-# many <- manylm(N.Acetyl.D.Glucosamine~.,data=ds)
-# many
+plot <- ds %>%
+  ggplot(aes(y = ergosterol, x = ECM_abund_soil, color = TreeSpecies)) +
+  geom_point() +
+  scale_color_manual(values = c("#EAC435", "#345995"))+
+  geom_smooth(aes(group = TreeSpecies), method = "glm") +
+  labs(y = "Ergosterol", x  = "ECM Abundance (soil)")
 
+ggsave("Aus-Invasions-2023-Course/Plots/Analyses/ergosterol_vs_ecm_tree.png", plot = plot, dpi = 500, width = 5, heigh = 3, units = "in")
 
-
-#link who they are and what they do
-
-#manylm. Try this function
 
 #Do some sort of AIC-based model selection with all predictors
 #Response variables; Total CNP, decomp, 
 #Decomp 
+#Dredge package
+
+global.model <- 
