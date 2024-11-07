@@ -6,10 +6,10 @@ library(metafor)
 library(dplyr)
 library(tidyr)
 
-AU_masterdata <- read.csv("/Users/elenaleander/Desktop/AU_manuscript/Aus23_master_pooled.csv", header = TRUE)
+AU_masterdata <- read.csv("Merged_data/Aus23_master_pooled.csv", header = TRUE)
 
 #Filter for rows where 'day' is equal to 5; only interested in final day of Ecoplate results
-filtered_AU_masterdata <- subset(AU_masterdata, day == 5)
+filtered_AU_masterdata <- subset(AU_masterdata, day == 5) #Corinne may update the spreadsheet so that each day is a separate column
 
 ########Cohen's d, without response variable grouping#########
 #Use when sample sizes are relatively equal (Euc & Pine both = 9) 
@@ -92,7 +92,6 @@ forest(meta_model, slab = top_effects$Variable, header = c("Response Variable", 
 
 ########Cohen's d, response variables grouped######
 #Load and filter the dataset for 'day == 5'
-AU_masterdata <- read.csv("/Users/elenaleander/Desktop/AU_manuscript/Aus23_master_pooled.csv", header = TRUE)
 filtered_AU_masterdata <- subset(AU_masterdata, day == 5)
 
 #Define response variable groups
@@ -248,3 +247,57 @@ create_significant_forest_plot <- function(effect_data) {
 create_significant_forest_plot(significant_only)
 
 
+
+# Analyzign differences in the effect sizes -------------------------------
+
+
+
+ds <- rbind(soil_microbial_effects, root_microbial_effects, nutrient_effects)
+
+
+
+ds$source <- ifelse(grepl("_soil$", ds$Variable), "Soil", 
+                    ifelse(grepl("_root$", ds$Variable), "Root", NA))
+
+# Create 'Microbe_Type' column based on the beginning of 'Variable'
+ds$Microbe_Type <- ifelse(grepl("^(Path|Fungal|Endo|AMF|ECM|Sap)", ds$Variable), "Fungal", 
+                          ifelse(grepl("^(Bac|OtherBac|Oligotroph|Copiotroph)", ds$Variable), "Bacterial", NA))
+
+ds <- ds[!grepl("Simpson|Invsimpson", ds$Variable), ]
+
+ds <- ds %>%
+  filter(!is.na(Microbe_Type))%>%
+  filter()
+
+ds %>%
+  ggplot(aes(y = EffectSize, x = source, fill = Microbe_Type))+
+  geom_boxplot()
+
+#Pick shannon
+
+soil <- ds %>%
+  filter(source == "Soil")
+
+mod <- aov(EffectSize ~ Microbe_Type, ds)
+summary(mod)
+#Microbe type does not seem to matter after all.
+
+
+#How about pathogens
+
+significant_only$source <- ifelse(grepl("_soil$", significant_only$Variable), "Soil", 
+                    ifelse(grepl("_root$", significant_only$Variable), "Root", NA))
+
+significant_only <- significant_only %>%
+  filter(!is.na(source))
+
+plot <- significant_only %>%
+  filter(!is.na(source))%>%
+  ggplot(aes(y = EffectSize, x = source))+
+  geom_boxplot()+
+  geom_jitter()
+
+mod <- lm(EffectSize~source, significant_only)
+summary(mod)
+#In terms of significant effects sizes, roots are way more positive than soil. Kind of interesting. Only exception with roots is Endophyte Richness
+ggsave("Plots/roots_vs_soil_effects.jpg", plot, width = 4, height = 3, unit = "in")
