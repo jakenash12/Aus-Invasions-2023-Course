@@ -30,6 +30,33 @@ lit_p <- lit_p[c(1,9,10)]
 lit_cn <- lit_cn[c(2:4)]
 ```
 
+Right now the master pooled datasheet has repeated data because each biolog plate day is in the same column. Separate out the biolog reading for each substrate by day in new columns (ie, each substrate has 3 columns for day 1, day 3 and day 5)
+```{r}
+# remove duplicate rows for the non-biolog data
+main_nobio <- subset(main, main$day == 1)
+main_nobio <- main_nobio[c(2,3, 37,39:119)]
+
+# pull out just biolog data
+biolog <- main[c(4:37)]
+
+# separate by day
+biolog1 <- subset(biolog, biolog$day ==1)
+biolog3 <- subset(biolog, biolog$day ==3)
+biolog5 <- subset(biolog, biolog$day ==5)
+# edit column names
+colnames(biolog1)[2:33] <- paste0(colnames(biolog1)[2:33], "_BiologDay1")
+colnames(biolog3)[2:33] <- paste0(colnames(biolog1)[2:33], "_BiologDay3")
+colnames(biolog5)[2:33] <- paste0(colnames(biolog1)[2:33], "_BiologDay5")
+# join back together
+biolog_wide <- biolog1[2:34] %>%
+  full_join(biolog3[2:34], by = "treeName") %>%
+  full_join(biolog5[2:34], by = "treeName") 
+  
+# merge back with main dataframe
+main_edited <- merge(main_nobio, biolog_wide, by = "treeName")
+
+```
+
 Merge all litter data into one dataframe
 ```{r}
 all_lit <- lit_erg %>%
@@ -103,5 +130,11 @@ lit_format$Litter_avg_percC <- rowMeans(lit_format[, c('Euc_leafLitter_percC', '
 # save final litter spreadsheet
 write.csv(lit_format, "../Litter_data/Aus23_litter_allNutrients.csv")
   
+```
+
+Merge all into one final dataframe
+```{r}
+final <- merge(main_edited, lit_format, by = "treeName")
+write.csv(final, "../Merged_data/Aus23_allData_7Nov24.csv")
 ```
 
