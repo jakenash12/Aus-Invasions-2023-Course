@@ -45,8 +45,8 @@ biolog3 <- subset(biolog, biolog$day ==3)
 biolog5 <- subset(biolog, biolog$day ==5)
 # edit column names
 colnames(biolog1)[2:33] <- paste0(colnames(biolog1)[2:33], "_BiologDay1")
-colnames(biolog3)[2:33] <- paste0(colnames(biolog1)[2:33], "_BiologDay3")
-colnames(biolog5)[2:33] <- paste0(colnames(biolog1)[2:33], "_BiologDay5")
+colnames(biolog3)[2:33] <- paste0(colnames(biolog3)[2:33], "_BiologDay3")
+colnames(biolog5)[2:33] <- paste0(colnames(biolog5)[2:33], "_BiologDay5")
 # join back together
 biolog_wide <- biolog1[2:34] %>%
   full_join(biolog3[2:34], by = "treeName") %>%
