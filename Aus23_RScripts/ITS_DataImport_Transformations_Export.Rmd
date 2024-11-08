@@ -41,7 +41,7 @@ Metadata_ITS=
   read_tsv("../Aus23_16S_Metabarcoding/MetabarcodingMetadata.txt") %>%
   slice(-1) %>% #remove the comment row 
   rename("SampleID"=`sample-id`) %>% #rename SampleID column
-  mutate(TreeSampleType = gsub("-.", "", SampleID)) #generate new column with Tree ID and sample type concatenated
+=  mutate(TreeSampleType = gsub("-.", "", SampleID)) #generate new column with Tree ID and sample type concatenated
 
 Metadata_ITS_pooled=
   Metadata_ITS %>%
