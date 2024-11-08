@@ -1,0 +1,140 @@
+---
+title: "Aus23_merge_litter_data.Rmd"
+output: html_document
+date: "2024-10-17"
+---
+
+This is the code to merge the master dataframe with the litter data.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+load libraries
+```{r}
+library(tidyverse)
+library(stringr)
+library(DescTools)
+```
+
+Read in dataframes
+```{r}
+main <- read.csv("../Merged_data/Aus23_master_pooled.csv")
+lit_erg <- read.csv("../Litter_data/Belanglo_litter_ergosterol.csv")
+lit_p <- read.csv("../Litter_data/Belanglo_litter_P.csv")
+lit_cn <- read.csv("../Litter_data/Belanglo_litter_CN.csv")
+
+#select out columns we want
+lit_erg <- lit_erg[c(1,4)]
+lit_p <- lit_p[c(1,9,10)]
+lit_cn <- lit_cn[c(2:4)]
+```
+
+Right now the master pooled datasheet has repeated data because each biolog plate day is in the same column. Separate out the biolog reading for each substrate by day in new columns (ie, each substrate has 3 columns for day 1, day 3 and day 5)
+```{r}
+# remove duplicate rows for the non-biolog data
+main_nobio <- subset(main, main$day == 1)
+main_nobio <- main_nobio[c(2,3, 37,39:119)]
+
+# pull out just biolog data
+biolog <- main[c(4:37)]
+
+# separate by day
+biolog1 <- subset(biolog, biolog$day ==1)
+biolog3 <- subset(biolog, biolog$day ==3)
+biolog5 <- subset(biolog, biolog$day ==5)
+# edit column names
+colnames(biolog1)[2:33] <- paste0(colnames(biolog1)[2:33], "_BiologDay1")
+colnames(biolog3)[2:33] <- paste0(colnames(biolog1)[2:33], "_BiologDay3")
+colnames(biolog5)[2:33] <- paste0(colnames(biolog1)[2:33], "_BiologDay5")
+# join back together
+biolog_wide <- biolog1[2:34] %>%
+  full_join(biolog3[2:34], by = "treeName") %>%
+  full_join(biolog5[2:34], by = "treeName") 
+  
+# merge back with main dataframe
+main_edited <- merge(main_nobio, biolog_wide, by = "treeName")
+
+```
+
+Merge all litter data into one dataframe
+```{r}
+all_lit <- lit_erg %>%
+  full_join(lit_p, by = "ID") %>%
+  full_join(lit_cn, by = "ID")
+```
+
+Create new columns for tree IDs and litter types
+```{r}
+# paste tree name
+all_lit$treeName <- str_sub(all_lit$ID, 1, 2)
+
+# paste litter tree origin (pine or eucalyptus)
+all_lit <- all_lit %>%
+  mutate(litter_species = case_when(
+    grepl("Pine", ID) ~ "Pine",
+    grepl("Euc", ID) ~ "Euc",
+    TRUE ~ NA_character_
+  ))
+
+# paste litter type (leaf litter, bark, or organic layer)
+all_lit <- all_lit %>%
+  mutate(litter_type = case_when(
+    grepl("LL", ID) ~ "Leaf litter",
+    grepl("B", ID) ~ "Bark",
+    grepl("OL", ID) ~ "Organic layer",
+    TRUE ~ NA_character_
+  ))
+
+# Create new dataframes by litter type
+leaf.pine <- subset(all_lit, all_lit$litter_type %like% "Leaf litter" & all_lit$litter_species %like% "Pine")
+leaf.euc <- subset(all_lit, all_lit$litter_type %like% "Leaf litter" & all_lit$litter_species %like% "Euc")
+bark <- subset(all_lit, all_lit$litter_type %like% "Bark")
+OL <- subset(all_lit, all_lit$litter_type %like% "Organic layer")
+
+```
+
+Subset out columns and rename columns
+```{r}
+leaf.euc <- leaf.euc[c(2:7)]
+colnames(leaf.euc)[1:5] <- c("Euc_leafLitter_ergosterol", "Euc_leafLitter_totP", "Euc_leafLitter_percP", "Euc_leafLitter_percN", "Euc_leafLitter_percC")
+
+leaf.pine <- leaf.pine[c(2:7)]
+colnames(leaf.pine)[1:5] <- c("Pine_leafLitter_ergosterol", "Pine_leafLitter_totP", "Pine_leafLitter_percP", "Pine_leafLitter_percN", "Pine_leafLitter_percC")
+
+bark <- bark[c(2:7)]
+colnames(bark)[1:5] <- c("Euc_Bark_ergosterol", "Euc_Bark_totP", "Euc_Bark_percP", "Euc_Bark_percN", "Euc_Bark_percC")
+
+OL <- OL[c(2:7)]
+colnames(OL)[1:5] <- c("Litter_OLayer_ergosterol", "Litter_OLayer_totP", "Litter_OLayer_percP", "Litter_OLayer_percN", "Litter_OLayer_percC")
+#remove the one row with tree name "ER"...not sure what this row is??
+OL <- OL[c(1:18),]
+```
+
+Merge the formatted litter data into one dataframe
+```{r}
+lit_format <- leaf.euc %>%
+  full_join(leaf.pine, by = "treeName") %>%
+  full_join(bark, by = "treeName") %>%
+  full_join(OL, by = "treeName")
+```
+
+Create average litter nutrient content across litter types
+```{r}
+lit_format$Litter_avg_ergosterol <- rowMeans(lit_format[, c('Euc_leafLitter_ergosterol', 'Pine_leafLitter_ergosterol','Euc_Bark_ergosterol', 'Litter_OLayer_ergosterol')], na.rm = TRUE)
+lit_format$Litter_avg_totP <- rowMeans(lit_format[, c('Euc_leafLitter_totP', 'Pine_leafLitter_totP','Euc_Bark_totP', 'Litter_OLayer_totP')], na.rm = TRUE)
+lit_format$Litter_avg_percP <- rowMeans(lit_format[, c('Euc_leafLitter_percP', 'Pine_leafLitter_percP','Euc_Bark_percP', 'Litter_OLayer_percP')], na.rm = TRUE)
+lit_format$Litter_avg_percN <- rowMeans(lit_format[, c('Euc_leafLitter_percN', 'Pine_leafLitter_percN','Euc_Bark_percN', 'Litter_OLayer_percN')], na.rm = TRUE)
+lit_format$Litter_avg_percC <- rowMeans(lit_format[, c('Euc_leafLitter_percC', 'Pine_leafLitter_percC','Euc_Bark_percC', 'Litter_OLayer_percC')], na.rm = TRUE)
+
+# save final litter spreadsheet
+write.csv(lit_format, "../Litter_data/Aus23_litter_allNutrients.csv")
+  
+```
+
+Merge all into one final dataframe
+```{r}
+final <- merge(main_edited, lit_format, by = "treeName")
+write.csv(final, "../Merged_data/Aus23_allData_7Nov24.csv")
+```
+
