@@ -214,13 +214,17 @@ ANCOM_ITS_pooled_root_df_plot=
                             lfc_TreeSpeciesPine>0 ~ "Pine",
                             .default=NA),
            otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
-ggplot(ANCOM_ITS_pooled_root_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+
+ANCOM_ITS_root_plot=
+  ggplot(ANCOM_ITS_pooled_root_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
   geom_bar(stat="identity", aes(fill=HostID)) +
   geom_hline(yintercept=0, color="black") +
   coord_flip() +
   theme_test() +
   ylab("Log2FoldChange") +
-  scale_x_discrete(labels = ANCOM_ITS_pooled_root_df_plot$TaxClass)
+  scale_x_discrete(labels = ANCOM_ITS_pooled_root_df_plot$TaxClass) +
+  ggtitle("Fungi different in roots") +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 ## ITS soil ANCOMBC-2 test
@@ -255,13 +259,17 @@ ANCOM_ITS_pooled_soil_df_plot=
                             lfc_TreeSpeciesPine>0 ~ "Pine",
                             .default=NA),
            otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
-ggplot(ANCOM_ITS_pooled_soil_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+
+ANCOM_ITS_soil_plot=
+  ggplot(ANCOM_ITS_pooled_soil_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
   geom_bar(stat="identity", aes(fill=HostID)) +
   geom_hline(yintercept=0, color="black") +
   coord_flip() +
   theme_test() +
   ylab("Log2FoldChange") +
-  scale_x_discrete(labels = ANCOM_ITS_pooled_soil_df_plot$TaxClass)
+  scale_x_discrete(labels = ANCOM_ITS_pooled_soil_df_plot$TaxClass) +
+  ggtitle("Fungi different in soil") +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 ## 16S root ANCOMBC-2 test
@@ -296,69 +304,82 @@ ANCOM_16S_pooled_root_df_plot=
                             lfc_TreeSpeciesPine>0 ~ "Pine",
                             .default=NA),
            otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
-ggplot(ANCOM_16S_pooled_root_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+
+ANCOM_16S_root_plot=
+  ggplot(ANCOM_16S_pooled_root_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
   geom_bar(stat="identity", aes(fill=HostID)) +
   geom_hline(yintercept=0, color="black") +
   coord_flip() +
   theme_test() +
   ylab("Log2FoldChange") +
-  scale_x_discrete(labels = ANCOM_16S_pooled_root_df_plot$TaxClass)
+  scale_x_discrete(labels = ANCOM_16S_pooled_root_df_plot$TaxClass) +
+  ggtitle("Bacteria different in roots") +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
-## Create Summary Data Table
-Table just has counts of # OTUs differentially abundant in each test
+## 16S soil ANCOMBC-2 test
+```{r, warning=FALSE, message=FALSE}
+ANCOM_16S_pooled_soil = ancombc2(data = Phyloseq_pooled_16S_soil,
+                  fix_formula = "TreeSpecies",
+                  p_adj_method = "fdr", pseudo_sens = TRUE,
+                  prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+                  group = "TreeSpecies", struc_zero = FALSE, neg_lb = FALSE,
+                  alpha = 0.05, n_cl = 2, verbose = TRUE,
+                  global = TRUE, pairwise = FALSE, 
+                  dunnet = FALSE, trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, 
+                                      verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = lme4::lmerControl(), 
+                  mdfdr_control = list(fwer_ctrl_method = "fdr", B = 100), 
+                  trend_control = NULL)
 
-Table shows there are VERY few OTUs differing by species in Linda tests. Just 1 significant OTU across the 4 tests
+ANCOM_16S_pooled_soil_df=
+  ANCOM_16S_pooled_soil$res %>%
+  as.data.frame %>% 
+  rename("otu"="taxon") %>%
+  left_join(TaxMat16S) %>%
+  mutate(TaxClass=ifelse(!is.na(Species),Species,ifelse(!is.na(Genus),Genus,ifelse(!is.na(Family),Family,ifelse(!is.na(Order),Order,ifelse(!is.na(Class),Class,ifelse(!is.na(Phylum),Phylum,Kingdom)))))))
+
+
+ANCOM_16S_pooled_soil_df_plot=
+  ANCOM_16S_pooled_soil_df %>%
+    filter(p_TreeSpeciesPine<0.05) %>%
+    mutate(HostID=case_when(lfc_TreeSpeciesPine<0 ~ "Eucalyptus",
+                            lfc_TreeSpeciesPine>0 ~ "Pine",
+                            .default=NA),
+           otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
+
+ANCOM_16S_soil_plot=
+  ggplot(ANCOM_16S_pooled_soil_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+  geom_bar(stat="identity", aes(fill=HostID)) +
+  geom_hline(yintercept=0, color="black") +
+  coord_flip() +
+  theme_test() +
+  ylab("Log2FoldChange") +
+  scale_x_discrete(labels = ANCOM_16S_pooled_soil_df_plot$TaxClass) +
+  ggtitle("Bacteria different in soil") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+## Saves lists of differentially abundant fungi/bacteria
 ```{r, warning=FALSE, message=FALSE}
 
-n_Linda_ITS_root=
-  Linda_ITS_root_df %>%
-  filter(reject) %>%
-  nrow
+ANCOM_ITS_root_plot
+ggsave("../ANCOMBC-2/ANCOM_ITS_root_plot.png", width=6, height=4)
 
-n_Linda_ITS_soil=
-  Linda_ITS_soil_df %>%
-  filter(reject) %>%
-  nrow
+ANCOM_ITS_soil_plot
+ggsave("../ANCOMBC-2/ANCOM_ITS_soil_plot.png", width=6, height=6)
 
-n_Linda_16S_root=
-  Linda_16S_root_df %>%
-  filter(reject) %>%
-  nrow
+ANCOM_16S_root_plot
+ggsave("../ANCOMBC-2/ANCOM_16S_root_plot.png", width=6, height=10)
 
-n_Linda_16S_soil=
-  Linda_16S_soil_df %>%
-  filter(reject) %>%
-  nrow
+ANCOM_16S_soil_plot
+ggsave("../ANCOMBC-2/ANCOM_16S_soil_plot.png", width=6, height=10)
 
-n_Linda_ITS_root_no_random=
-  Linda_ITS_root_no_random_df %>%
-  filter(reject) %>%
-  nrow
-
-n_Linda_ITS_soil_no_random=
-  Linda_ITS_soil_no_random_df %>%
-  filter(reject) %>%
-  nrow
-
-n_Linda_16S_root_no_random=
-  Linda_16S_root_no_random_df %>%
-  filter(reject) %>%
-  nrow
-
-n_Linda_16S_soil_no_random=
-  Linda_16S_soil_no_random_df %>%
-  filter(reject) %>%
-  nrow
+write.csv(ANCOM_ITS_pooled_root_df_plot, "../ANCOMBC-2/ANCOM_ITS_pooled_root_df_plot.csv", row.names = FALSE)
+write.csv(ANCOM_ITS_pooled_soil_df_plot, "../ANCOMBC-2/ANCOM_ITS_pooled_soil_df_plot.csv", row.names = FALSE)
+write.csv(ANCOM_16S_pooled_root_df_plot, "../ANCOMBC-2/ANCOM_16S_pooled_root_df_plot.csv", row.names = FALSE)
+write.csv(ANCOM_16S_pooled_soil_df_plot, "../ANCOMBC-2/ANCOM_16S_pooled_soil_df_plot.csv", row.names = FALSE)
 
 
-LINDA_summary=
-  data.frame(Locus=c("ITS", "ITS", "16S", "16S"),
-             SampleType=c("Root","Soil","Root","Soil"),
-             n_LINDA_no_random=c(n_LINDA_ITS_root_no_random, n_LINDA_ITS_soil_no_random, n_LINDA_16S_root_no_random, n_LINDA_16S_soil_no_random),
-             n_LINDA_random=c(n_LINDA_ITS_root, n_LINDA_ITS_soil, n_LINDA_16S_root, n_LINDA_16S_soil),
-             n_ANCOM_no_random=c(n_ANCOM_ITS_root_no_random, n_ANCOM_ITS_soil_no_random, n_ANCOM_16S_root_no_random, n_ANCOM_16S_soil_no_random),
-             n_ANCOM_random=c(n_ANCOM_ITS_root, n_ANCOM_ITS_soil, n_ANCOM_16S_root, n_ANCOM_16S_soil))
-
-LINDA_summary
 ```
