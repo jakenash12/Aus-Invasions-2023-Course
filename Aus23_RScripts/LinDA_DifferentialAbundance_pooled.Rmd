@@ -1,0 +1,385 @@
+---
+title: "LINDA Differential Abundance Testing with pooled microbial data"
+author: "Jake Nash"
+date: "2024-11-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+These scripts use LinDA to perform differential abundance testing to test for effects of tree species on OTU abundance. Tests are performed separately for root and soil samples. 
+
+The LinDA method was done both with and without the random effect of Tree individual to test how it affected statistical power.
+
+## Load required packages
+Note that the MicrobiomeStat package contains the code for LINDA
+```{r, warning=FALSE, message=FALSE}
+library(MicrobiomeStat)
+library(dplyr)
+library(magrittr)
+library(tibble)
+library(ANCOMBC)
+library(tidyverse)
+library(readxl)
+```
+
+## Reads in raw ITS OTU tables and metadata
+
+```{r, warning=FALSE, message=FALSE}
+OtuMatITS_rare_pooled=
+  read.csv("../Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare_pooled.csv", row.names = 1)
+
+TaxMatITS=
+  read_xlsx("../Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited.xlsx") %>%
+  rename("otu"="Feature ID") %>%
+  select(otu, Kingdom:Species)
+
+OtuMat16S_rare_pooled=
+  read.csv("../Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rare_pooled.csv", row.names = 1)
+
+#custom function to parse taxonomy
+extract_text <- function(x) {
+  sub(".+__", "", x)
+}
+
+TaxMat16S_SILVA=
+  read_tsv("../Aus23_16S_Metabarcoding/Aus23_16S_SilvaTaxonomy_16S.tsv") %>% 
+  rename("otu"="Feature ID") %>%
+  select(-Confidence) %>%
+  separate_wider_delim(too_few="align_start", cols = Taxon, delim = ";", names = c("Kingdom", "Phylum","Class", "Order","Family","Genus","Species", "SH")) %>%
+  mutate(across(!contains("otu"), ~extract_text(.)))
+```
+
+## LINDA test for ITS samples
+```{r, warning=FALSE, message=FALSE}
+Metadata_ITS_LINDA_pooled=
+  data.frame(TreeSampleType=rownames(OtuMatITS_rare_pooled)) %>%
+  mutate(TreeSpecies=str_extract(TreeSampleType, "^.")) %>%
+  mutate(TreeSpecies = case_when(
+    TreeSpecies == "E" ~ "Eucalyptus",
+    TreeSpecies == "P" ~ "Pine",
+    TRUE ~ TreeSpecies  # Keep other values as they are
+  )) %>%
+  mutate(SampleType = sub(".*_", "", TreeSampleType))
+
+#create ITS OTU table just with Root samples
+OtuMatITS_rare_pooled_root= 
+  OtuMatITS_rare_pooled %>% 
+  t %>%
+  as.data.frame %>%
+  select(contains("Root")) 
+
+#create metadata table just with root samples in ITS otu table
+Metadata_ITS_LINDA_pooled_root=
+  Metadata_ITS_LINDA_pooled %>%
+  filter(TreeSampleType %in% colnames(OtuMatITS_rare_pooled_root))
+
+#runs LinDA test for effect of tree species, using tree individual as random effects
+Linda_ITS_pooled_root =
+  linda(
+    feature.dat=OtuMatITS_rare_pooled_root,
+    meta.dat=Metadata_ITS_LINDA_pooled_root,
+    formula='~TreeSpecies',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="holm",
+    alpha=0.05)
+
+#creates a formatted dataframe for ITS root samples LinDA
+Linda_ITS_root_pooled_df=
+  as.data.frame(Linda_ITS_pooled_soil$output$TreeSpeciesPine) %>%
+  mutate(otu = sub("^X+", "", rownames(.))) %>%
+  left_join(TaxMatITS)
+
+################
+#create ITS OTU table just with Root samples
+OtuMatITS_rare_pooled_Soil= 
+  OtuMatITS_rare_pooled %>% 
+  t %>%
+  as.data.frame %>%
+  select(contains("Soil")) 
+
+#create metadata table just with root samples in ITS otu table
+Metadata_ITS_LINDA_pooled_soil=
+  Metadata_ITS_LINDA_pooled %>% 
+  filter(TreeSampleType %in% colnames(OtuMatITS_rare_pooled_Soil))
+
+#runs LinDA test for effect of tree species, using tree individual as random effects
+Linda_ITS_pooled_soil =
+  linda(
+    feature.dat=OtuMatITS_rare_pooled_Soil,
+    meta.dat=Metadata_ITS_LINDA_pooled_soil,
+    formula='~TreeSpecies',
+    feature.dat.type="count",
+    prev.filter=0.1,
+    zero.handling="pseudo.cnt",
+    pseudo.cnt = 0.5,
+    p.adj.method="holm",
+    alpha=0.05)
+
+#creates a formatted dataframe for ITS root samples LinDA
+Linda_ITS_soil_pooled_df=
+  as.data.frame(Linda_ITS_pooled_soil$output$TreeSpeciesPine) %>%
+  mutate(otu = sub("^X+", "", rownames(.))) %>%
+  left_join(TaxMatITS)
+```
+
+## Creates Phyloseq files for ANCOMBC-2
+ANCOMBC-2 requires OTU table, taxonomy, and metadata be converted into a phyloseq format object. Phyloseq objects are also created with data subsetted into root and soil samples
+```{r, warning=FALSE, message=FALSE}
+OTU_ITS_pooled_phyloseq=
+  OtuMatITS_rare_pooled %>%
+  as.matrix %>%
+  otu_table(taxa_are_rows = FALSE)
+
+TAX_ITS_pooled_phyloseq=
+  TaxMatITS %>%
+  filter(otu %in% colnames(OtuMatITS_rare_pooled)) %>%
+  column_to_rownames("otu") %>%
+  as.matrix %>%
+  tax_table
+
+SAMPLES_ITS_pooled_phyloseq=
+  Metadata_ITS_LINDA_pooled %>% 
+  filter(TreeSampleType %in% rownames(OtuMatITS_rare_pooled)) %>%
+  column_to_rownames("TreeSampleType") %>% 
+  sample_data()
+
+Phyloseq_pooled_ITS <- phyloseq(OTU_ITS_pooled_phyloseq, TAX_ITS_pooled_phyloseq, SAMPLES_ITS_pooled_phyloseq)
+
+#subset phyloseq object into root and soil samples
+Phyloseq_pooled_ITS_root=subset_samples(Phyloseq_pooled_ITS, SampleType=="Root")
+Phyloseq_pooled_ITS_soil=subset_samples(Phyloseq_pooled_ITS, SampleType=="Soil")
+
+
+#####16S
+OTU_16S_pooled_phyloseq=
+  OtuMat16S_rare_pooled %>%
+  as.matrix %>%
+  otu_table(taxa_are_rows = FALSE)
+
+TAX_16S_pooled_phyloseq=
+  TaxMat16S_SILVA %>%
+  filter(otu %in% colnames(OtuMat16S_rare_pooled)) %>%
+  column_to_rownames("otu") %>%
+  as.matrix %>%
+  tax_table
+
+SAMPLES_16S_pooled_phyloseq=
+  Metadata_ITS_LINDA_pooled %>% 
+  filter(TreeSampleType %in% rownames(OtuMat16S_rare_pooled)) %>%
+  column_to_rownames("TreeSampleType") %>% 
+  sample_data()
+
+Phyloseq_pooled_16S <- phyloseq(OTU_16S_pooled_phyloseq, TAX_16S_pooled_phyloseq, SAMPLES_16S_pooled_phyloseq)
+
+#subset phyloseq object into root and soil samples
+Phyloseq_pooled_16S_root=subset_samples(Phyloseq_pooled_16S, SampleType=="Root")
+Phyloseq_pooled_16S_soil=subset_samples(Phyloseq_pooled_16S, SampleType=="Soil")
+```
+
+## ITS root ANCOMBC-2 test
+```{r, warning=FALSE, message=FALSE}
+ANCOM_ITS_pooled_root = ancombc2(data = Phyloseq_pooled_ITS_root,
+                  fix_formula = "TreeSpecies",
+                  p_adj_method = "fdr", pseudo_sens = TRUE,
+                  prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+                  group = "TreeSpecies", struc_zero = FALSE, neg_lb = FALSE,
+                  alpha = 0.05, n_cl = 2, verbose = TRUE,
+                  global = TRUE, pairwise = FALSE, 
+                  dunnet = FALSE, trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, 
+                                      verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = lme4::lmerControl(), 
+                  mdfdr_control = list(fwer_ctrl_method = "fdr", B = 100), 
+                  trend_control = NULL)
+
+ANCOM_ITS_pooled_root_df=
+  ANCOM_ITS_pooled_root$res %>%
+  as.data.frame %>% 
+  rename("otu"="taxon") %>%
+  left_join(TaxMatITS) %>%
+  mutate(TaxClass=ifelse(!is.na(Species),Species,ifelse(!is.na(Genus),Genus,ifelse(!is.na(Family),Family,ifelse(!is.na(Order),Order,ifelse(!is.na(Class),Class,ifelse(!is.na(Phylum),Phylum,Kingdom)))))))
+
+
+ANCOM_ITS_pooled_root_df_plot=
+  ANCOM_ITS_pooled_root_df %>%
+    filter(p_TreeSpeciesPine<0.05) %>%
+    mutate(HostID=case_when(lfc_TreeSpeciesPine<0 ~ "Eucalyptus",
+                            lfc_TreeSpeciesPine>0 ~ "Pine",
+                            .default=NA),
+           otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
+
+ANCOM_ITS_root_plot=
+  ggplot(ANCOM_ITS_pooled_root_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+  geom_bar(stat="identity", aes(fill=HostID)) +
+  geom_hline(yintercept=0, color="black") +
+  coord_flip() +
+  theme_test() +
+  ylab("Log2FoldChange") +
+  scale_x_discrete(labels = ANCOM_ITS_pooled_root_df_plot$TaxClass) +
+  ggtitle("Fungi different in roots") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## ITS soil ANCOMBC-2 test
+```{r, warning=FALSE, message=FALSE}
+ANCOM_ITS_pooled_soil = ancombc2(data = Phyloseq_pooled_ITS_soil,
+                  fix_formula = "TreeSpecies",
+                  p_adj_method = "fdr", pseudo_sens = TRUE,
+                  prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+                  group = "TreeSpecies", struc_zero = FALSE, neg_lb = FALSE,
+                  alpha = 0.05, n_cl = 2, verbose = TRUE,
+                  global = TRUE, pairwise = FALSE, 
+                  dunnet = FALSE, trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, 
+                                      verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = lme4::lmerControl(), 
+                  mdfdr_control = list(fwer_ctrl_method = "fdr", B = 100), 
+                  trend_control = NULL)
+
+ANCOM_ITS_pooled_soil_df=
+  ANCOM_ITS_pooled_soil$res %>%
+  as.data.frame %>% 
+  rename("otu"="taxon") %>%
+  left_join(TaxMatITS) %>%
+  mutate(TaxClass=ifelse(!is.na(Species),Species,ifelse(!is.na(Genus),Genus,ifelse(!is.na(Family),Family,ifelse(!is.na(Order),Order,ifelse(!is.na(Class),Class,ifelse(!is.na(Phylum),Phylum,Kingdom)))))))
+
+
+ANCOM_ITS_pooled_soil_df_plot=
+  ANCOM_ITS_pooled_soil_df %>%
+    filter(p_TreeSpeciesPine<0.05) %>%
+    mutate(HostID=case_when(lfc_TreeSpeciesPine<0 ~ "Eucalyptus",
+                            lfc_TreeSpeciesPine>0 ~ "Pine",
+                            .default=NA),
+           otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
+
+ANCOM_ITS_soil_plot=
+  ggplot(ANCOM_ITS_pooled_soil_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+  geom_bar(stat="identity", aes(fill=HostID)) +
+  geom_hline(yintercept=0, color="black") +
+  coord_flip() +
+  theme_test() +
+  ylab("Log2FoldChange") +
+  scale_x_discrete(labels = ANCOM_ITS_pooled_soil_df_plot$TaxClass) +
+  ggtitle("Fungi different in soil") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## 16S root ANCOMBC-2 test
+```{r, warning=FALSE, message=FALSE}
+ANCOM_16S_pooled_root = ancombc2(data = Phyloseq_pooled_16S_root,
+                  fix_formula = "TreeSpecies",
+                  p_adj_method = "fdr", pseudo_sens = TRUE,
+                  prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+                  group = "TreeSpecies", struc_zero = FALSE, neg_lb = FALSE,
+                  alpha = 0.05, n_cl = 2, verbose = TRUE,
+                  global = TRUE, pairwise = FALSE, 
+                  dunnet = FALSE, trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, 
+                                      verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = lme4::lmerControl(), 
+                  mdfdr_control = list(fwer_ctrl_method = "fdr", B = 100), 
+                  trend_control = NULL)
+
+ANCOM_16S_pooled_root_df=
+  ANCOM_16S_pooled_root$res %>%
+  as.data.frame %>% 
+  rename("otu"="taxon") %>%
+  left_join(TaxMat16S) %>%
+  mutate(TaxClass=ifelse(!is.na(Species),Species,ifelse(!is.na(Genus),Genus,ifelse(!is.na(Family),Family,ifelse(!is.na(Order),Order,ifelse(!is.na(Class),Class,ifelse(!is.na(Phylum),Phylum,Kingdom)))))))
+
+
+ANCOM_16S_pooled_root_df_plot=
+  ANCOM_16S_pooled_root_df %>%
+    filter(p_TreeSpeciesPine<0.05) %>%
+    mutate(HostID=case_when(lfc_TreeSpeciesPine<0 ~ "Eucalyptus",
+                            lfc_TreeSpeciesPine>0 ~ "Pine",
+                            .default=NA),
+           otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
+
+ANCOM_16S_root_plot=
+  ggplot(ANCOM_16S_pooled_root_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+  geom_bar(stat="identity", aes(fill=HostID)) +
+  geom_hline(yintercept=0, color="black") +
+  coord_flip() +
+  theme_test() +
+  ylab("Log2FoldChange") +
+  scale_x_discrete(labels = ANCOM_16S_pooled_root_df_plot$TaxClass) +
+  ggtitle("Bacteria different in roots") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## 16S soil ANCOMBC-2 test
+```{r, warning=FALSE, message=FALSE}
+ANCOM_16S_pooled_soil = ancombc2(data = Phyloseq_pooled_16S_soil,
+                  fix_formula = "TreeSpecies",
+                  p_adj_method = "fdr", pseudo_sens = TRUE,
+                  prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+                  group = "TreeSpecies", struc_zero = FALSE, neg_lb = FALSE,
+                  alpha = 0.05, n_cl = 2, verbose = TRUE,
+                  global = TRUE, pairwise = FALSE, 
+                  dunnet = FALSE, trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, 
+                                      verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = lme4::lmerControl(), 
+                  mdfdr_control = list(fwer_ctrl_method = "fdr", B = 100), 
+                  trend_control = NULL)
+
+ANCOM_16S_pooled_soil_df=
+  ANCOM_16S_pooled_soil$res %>%
+  as.data.frame %>% 
+  rename("otu"="taxon") %>%
+  left_join(TaxMat16S) %>%
+  mutate(TaxClass=ifelse(!is.na(Species),Species,ifelse(!is.na(Genus),Genus,ifelse(!is.na(Family),Family,ifelse(!is.na(Order),Order,ifelse(!is.na(Class),Class,ifelse(!is.na(Phylum),Phylum,Kingdom)))))))
+
+
+ANCOM_16S_pooled_soil_df_plot=
+  ANCOM_16S_pooled_soil_df %>%
+    filter(p_TreeSpeciesPine<0.05) %>%
+    mutate(HostID=case_when(lfc_TreeSpeciesPine<0 ~ "Eucalyptus",
+                            lfc_TreeSpeciesPine>0 ~ "Pine",
+                            .default=NA),
+           otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
+
+ANCOM_16S_soil_plot=
+  ggplot(ANCOM_16S_pooled_soil_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+  geom_bar(stat="identity", aes(fill=HostID)) +
+  geom_hline(yintercept=0, color="black") +
+  coord_flip() +
+  theme_test() +
+  ylab("Log2FoldChange") +
+  scale_x_discrete(labels = ANCOM_16S_pooled_soil_df_plot$TaxClass) +
+  ggtitle("Bacteria different in soil") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+## Saves lists of differentially abundant fungi/bacteria
+```{r, warning=FALSE, message=FALSE}
+
+ANCOM_ITS_root_plot
+ggsave("../ANCOMBC-2/ANCOM_ITS_root_plot.png", width=6, height=4)
+
+ANCOM_ITS_soil_plot
+ggsave("../ANCOMBC-2/ANCOM_ITS_soil_plot.png", width=6, height=6)
+
+ANCOM_16S_root_plot
+ggsave("../ANCOMBC-2/ANCOM_16S_root_plot.png", width=6, height=10)
+
+ANCOM_16S_soil_plot
+ggsave("../ANCOMBC-2/ANCOM_16S_soil_plot.png", width=6, height=10)
+
+write.csv(ANCOM_ITS_pooled_root_df_plot, "../ANCOMBC-2/ANCOM_ITS_pooled_root_df_plot.csv", row.names = FALSE)
+write.csv(ANCOM_ITS_pooled_soil_df_plot, "../ANCOMBC-2/ANCOM_ITS_pooled_soil_df_plot.csv", row.names = FALSE)
+write.csv(ANCOM_16S_pooled_root_df_plot, "../ANCOMBC-2/ANCOM_16S_pooled_root_df_plot.csv", row.names = FALSE)
+write.csv(ANCOM_16S_pooled_soil_df_plot, "../ANCOMBC-2/ANCOM_16S_pooled_soil_df_plot.csv", row.names = FALSE)
+
+
+```
