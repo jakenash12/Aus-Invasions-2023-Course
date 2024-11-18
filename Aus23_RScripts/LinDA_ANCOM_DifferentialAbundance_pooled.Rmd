@@ -1,5 +1,5 @@
 ---
-title: "LINDA Differential Abundance Testing with pooled microbial data"
+title: "LINDA and ANCOMBC-2 Differential Abundance Testing with pooled microbial data"
 author: "Jake Nash"
 date: "2024-11-07"
 output: html_document
@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-These scripts use LinDA to perform differential abundance testing to test for effects of tree species on OTU abundance. Tests are performed separately for root and soil samples. 
+These scripts use LinDA and ANCOMBC-2 to perform differential abundance testing to test for effects of tree species on OTU abundance. Tests are performed separately for root and soil samples. 
 
 The LinDA method was done both with and without the random effect of Tree individual to test how it affected statistical power.
 
@@ -23,6 +23,7 @@ library(tibble)
 library(ANCOMBC)
 library(tidyverse)
 library(readxl)
+library(phyloseq)
 ```
 
 ## Reads in raw ITS OTU tables and metadata
@@ -91,7 +92,7 @@ Linda_ITS_pooled_root =
 
 #creates a formatted dataframe for ITS root samples LinDA
 Linda_ITS_root_pooled_df=
-  as.data.frame(Linda_ITS_pooled_soil$output$TreeSpeciesPine) %>%
+  as.data.frame(Linda_ITS_pooled_root$output$TreeSpeciesPine) %>%
   mutate(otu = sub("^X+", "", rownames(.))) %>%
   left_join(TaxMatITS)
 
@@ -293,7 +294,7 @@ ANCOM_16S_pooled_root_df=
   ANCOM_16S_pooled_root$res %>%
   as.data.frame %>% 
   rename("otu"="taxon") %>%
-  left_join(TaxMat16S) %>%
+  left_join(TaxMat16S_SILVA) %>%
   mutate(TaxClass=ifelse(!is.na(Species),Species,ifelse(!is.na(Genus),Genus,ifelse(!is.na(Family),Family,ifelse(!is.na(Order),Order,ifelse(!is.na(Class),Class,ifelse(!is.na(Phylum),Phylum,Kingdom)))))))
 
 
@@ -338,7 +339,7 @@ ANCOM_16S_pooled_soil_df=
   ANCOM_16S_pooled_soil$res %>%
   as.data.frame %>% 
   rename("otu"="taxon") %>%
-  left_join(TaxMat16S) %>%
+  left_join(TaxMat16S_SILVA) %>%
   mutate(TaxClass=ifelse(!is.na(Species),Species,ifelse(!is.na(Genus),Genus,ifelse(!is.na(Family),Family,ifelse(!is.na(Order),Order,ifelse(!is.na(Class),Class,ifelse(!is.na(Phylum),Phylum,Kingdom)))))))
 
 
