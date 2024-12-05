@@ -1,17 +1,19 @@
 #BB
 #10/23/24
 #Looking at how soil stuff changes with the biolog data
+#Mostly just biolog stuff in here.
 
 library(ggplot2)
 library(tidyr)
 
 theme_set(theme_bw())
 
-ds <- read.csv("Aus23_CNP_pooled_biolog.csv")
+
+ds <- read.csv("Aus23_allData_19Nov24.csv")
 
 ds_long <- ds %>%
   pivot_longer(cols = colnames(ds)[5:36], names_to = "Substrate", values_to = "Biolog")  
-
+#Change the above col numbers to reflect whatever we end up using
 #AMF
 
 library(RColorBrewer)

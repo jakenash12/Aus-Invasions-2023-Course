@@ -8,7 +8,7 @@ library(readxl)
 library(dplyr)
 library(tidyr)
 
-ds <- read_xlsx("Aus-Invasions-2023-Course/Merged_data/Aus23_master_pooled.xlsx")
+ds <- read.csv("Aus23_allData_19Nov24.csv")
 
 theme_set(theme_bw())
 
@@ -29,18 +29,20 @@ plot <- ds %>%
 
 ggsave("Aus-Invasions-2023-Course/Plots/Analyses/litterdepth_vs_ecm_moisture_tree.png", plot = plot, dpi = 500, width = 5, heigh = 3, units = "in")
 
-mod <- lm(ergosterol ~ ECM_abund_soil + TreeSpecies, ds)
+
+hist(ds$ergosterol) #Looks more like a gamma dist...
+mod <- glm(ergosterol ~ ECM_abund_soil+TreeSpecies, family = "Gamma", ds)
 summary(mod)
-#Interaction term is not significant. ECM abundance in soil seems to be a massive part of the ergosterol. Ergosterol also higher around pines. 
+#Interaction term is not significant. ECM abundance in soil seems to be a part of the ergosterol. Ergosterol higher around pines. 
 
 plot <- ds %>%
   ggplot(aes(y = ergosterol, x = ECM_abund_soil, color = TreeSpecies)) +
   geom_point() +
   scale_color_manual(values = c("#EAC435", "#345995"))+
-  geom_smooth(aes(group = TreeSpecies), method = "glm") +
+  geom_smooth(aes(group = TreeSpecies), method = "glm", method.args = list(family = "Gamma"),) +
   labs(y = "Ergosterol", x  = "ECM Abundance (soil)")
 
-ggsave("Aus-Invasions-2023-Course/Plots/Analyses/ergosterol_vs_ecm_tree.png", plot = plot, dpi = 500, width = 5, heigh = 3, units = "in")
+ggsave("C:/Users/beabo/OneDrive/Documents/NAU/Classes Archived/Australia Co-Invasions Course 2023/Aus-Invasions-2023-Course/Plots/Analyses/ergosterol_vs_ecm_tree.png", plot = plot, dpi = 500, width = 5, heigh = 3, units = "in")
 
 
 #Do some sort of AIC-based model selection with all predictors
@@ -72,8 +74,8 @@ long_data <- ds %>%
     names_from = Metric,  # Keep metrics as separate columns
     values_from = Value,  # Fill new columns with corresponding values
     values_fill = list(Value = NA)  # Fill NAs for missing values
-  )%>%
-  relocate(colnames(long_data)[51:ncol(long_data)])
+  )
+  #relocate(colnames(long_data)[51:ncol(long_data)])
   
 long_data %>%
   group_by(Bac_or_Fung, Sample_Location, TreeSpecies)%>%
