@@ -388,7 +388,7 @@ plot <- ds %>%
   ggplot(aes(y = EffectSize, x = source)) +
   geom_boxplot() +
   geom_jitter(aes(color = source), width = 0.2) +  # Jitter points
-  geom_text_repel(aes(label = Variable), size = 3, max.overlaps = Inf)+
+  geom_label_repel(aes(label = Variable), max.overlaps = Inf)+
   theme_bw() +
   labs(x = "Source", y = "Effect Size", title = "Effect Size by Source") +
   theme(plot.title = element_text(hjust = 0.5))
