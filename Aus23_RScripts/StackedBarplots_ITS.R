@@ -71,10 +71,42 @@ its.root.20gen.names <- psz.its.root %>%
   pull(Genus) 
 its.root.20gen <- subset(psz.its.root, psz.its.root$Genus %like% its.root.20gen.names)
 
+############ SOIL AND ROOTS ############ 
+
+# put back into phyloseq object
+ps.its <- phyloseq(otu_table(as.matrix(its.otu), taxa_are_rows=FALSE), 
+                        tax_table(as.matrix(its.tax.split)))
+
+# melt OTU table so each taxon is a row
+psz.its <- psmelt(ps.its)
+# add tree species
+psz.its$SampleCategory <- ifelse(grepl("E", psz.its$Sample),
+                                      ifelse(grepl("Soil", psz.its$Sample), "Eucalypt Soil",
+                                             ifelse(grepl("Root", psz.its$Sample), "Eucalypt Root", NA)),
+                                      ifelse(grepl("P", psz.its$Sample),
+                                             ifelse(grepl("Soil", psz.its$Sample), "Pine Soil",
+                                                    ifelse(grepl("Root", psz.its$Sample), "Pine Root", NA)),
+                                             NA))
+write.csv(psz.its, "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OTU_ITS_SoilRoot_rel_melted.csv")
+
+
+its.30gen.names <- psz.its %>%
+  filter(!is.na(Genus) & Genus != "NA" & !grepl("Incertae_sedis", Genus)) %>%
+  group_by(Genus) %>%
+  summarize(TotalAbundance = sum(Abundance)) %>%
+  arrange(desc(TotalAbundance)) %>%
+  slice_head(n = 30) %>%
+  pull(Genus) 
+its.30gen.names
+its.30gen <- subset(psz.its, psz.its$Genus %like% its.30gen.names & !is.na(SampleCategory))
+
+
 
 #################################### MAKE PLOTS #################################### 
 
-colors <- c(
+#get colors
+#######
+colors20 <- c(
   "#1f77b4", # Steel Blue
   "#ff7f0e", # Dark Orange
   "#2ca02c", # Forest Green
@@ -97,11 +129,47 @@ colors <- c(
   "#7b4173"  # Dark Purple
 )
 
+colors30 <- c(
+  "#1f77b4", # Steel Blue
+  "#ff7f0e", # Dark Orange
+  "#2ca02c", # Forest Green
+  "#9467bd", # Medium Purple
+  "#d62728", # Brick Red
+  "#8c564b", # Brown
+  "#e377c2", # Pink
+  "#7f7f7f", # Gray
+  "#bcbd22", # Olive
+  "#ff9896", # Light Salmon
+  "#17becf", # Light Blue
+  "#98df8a", # Light Green
+  "#ffbb78", # Light Orange
+  "#c5b0d5", # Light Purple
+  "#c49c94", # Light Brown
+  "#f7b6d2", # Light Pink
+  "#dbdb8d", # Khaki
+  "#9edae5", # Pale Blue
+  "#393b79", # Dark Blue
+  "#7b4173", # Dark Purple
+  "#ffa500", # Orange
+  "#ff9896", # Light Salmon
+  "#00ced1", # Dark Turquoise
+  "#32cd32", # Lime Green
+  "#ba55d3", # Medium Orchid
+  "#daa520", # Goldenrod
+  "#00fa9a", # Medium Spring Green
+  "#4682b4", # Steel Blue
+  "#ff6347", # Tomato
+  "#48d1cc"  # Medium Turquoise
+)
+
+
+######
+
 its.soil.plot <- ggplot(its.soil.20gen, aes(y=Abundance, x=Tree, fill = Genus, color = Genus)) + 
   geom_bar(position="fill", stat="identity")+
   labs(x = "Tree species", y = "Relative abundance")+
-  scale_fill_manual(values = colors)+
-  scale_color_manual(values = colors)+ 
+  scale_fill_manual(values = colors20)+
+  scale_color_manual(values = colors20)+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
 its.soil.plot
 ggsave("its_soil_stackedBarplot_top20genera.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
@@ -109,12 +177,22 @@ ggsave("its_soil_stackedBarplot_top20genera.png", path = "Aus-Invasions-2023-Cou
 its.root.plot <- ggplot(its.root.20gen, aes(y=Abundance, x=Tree, fill = Genus, color = Genus)) + 
   geom_bar(position="fill", stat="identity")+
   labs(x = "Tree species", y = "Relative abundance")+
-  scale_fill_manual(values = colors)+ 
-  scale_color_manual(values = colors)+ 
+  scale_fill_manual(values = colors20)+ 
+  scale_color_manual(values = colors20)+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
 its.root.plot
 ggsave("its_root_stackedBarplot_top20genera.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
 
+
+cat.ord <- c("Eucalypt Root", "Pine Root", "Eucalypt Soil", "Pine Soil")
+its.all.plot <- ggplot(its.30gen, aes(y=Abundance, x=factor(SampleCategory, cat.ord), fill = Genus, color = Genus)) + 
+  geom_bar(position="fill", stat="identity")+
+  labs(x = "Sample type", y = "Relative abundance")+
+  scale_fill_manual(values = colors30)+ 
+  scale_color_manual(values = colors30)+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
+its.all.plot
+ggsave("its_SoilRoot_stackedBarplot_top30genera.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=9, height=8, dpi=300)
 
 
 

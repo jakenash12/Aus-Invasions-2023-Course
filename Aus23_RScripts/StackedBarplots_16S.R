@@ -64,6 +64,37 @@ bac.root.20fam.names <- psz.bac.root %>%
 bac.root.20fam.names
 bac.root.20fam <- subset(psz.bac.root, psz.bac.root$Family %like% bac.root.20fam.names)
 
+############ SOIL AND ROOTS ############ 
+
+# put back into phyloseq object
+ps.bac <- phyloseq(otu_table(as.matrix(bac.otu), taxa_are_rows=FALSE), 
+                   tax_table(as.matrix(bac.tax.split)))
+
+# melt OTU table so each taxon is a row
+psz.bac <- psmelt(ps.bac)
+# add tree species
+psz.bac$SampleCategory <- ifelse(grepl("E", psz.bac$Sample),
+                                 ifelse(grepl("Soil", psz.bac$Sample), "Eucalypt Soil",
+                                        ifelse(grepl("Root", psz.bac$Sample), "Eucalypt Root", NA)),
+                                 ifelse(grepl("P", psz.bac$Sample),
+                                        ifelse(grepl("Soil", psz.bac$Sample), "Pine Soil",
+                                               ifelse(grepl("Root", psz.bac$Sample), "Pine Root", NA)),
+                                        NA))
+write.csv(psz.bac, "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OTU_16S_SoilRoot_rel_melted.csv")
+
+
+bac.30fam.names <- psz.bac %>%
+  filter(!is.na(Family) & Family != "NA" & Family != " uncultured" & Family != " Unknown_Family") %>%
+  group_by(Family) %>%
+  summarize(TotalAbundance = sum(Abundance)) %>%
+  arrange(desc(TotalAbundance)) %>%
+  slice_head(n = 30) %>%
+  pull(Family) 
+bac.30fam.names
+bac.30fam <- subset(psz.bac, psz.bac$Family %like% bac.30fam.names & !is.na(SampleCategory))
+
+
+
 
 #################################### MAKE PLOTS #################################### 
 
@@ -97,7 +128,7 @@ bac.soil.plot <- ggplot(bac.soil.20fam, aes(y=Abundance, x=Tree, fill = Family, 
   scale_color_manual(values = colors)+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
 bac.soil.plot
-ggsave("16S_soil_stackedBarplot_top20genera.png", path = "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
+ggsave("16S_soil_stackedBarplot_top20family.png", path = "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
 
 bac.root.plot <- ggplot(bac.root.20fam, aes(y=Abundance, x=Tree, fill = Family, color = Family)) + 
   geom_bar(position="fill", stat="identity")+
@@ -106,8 +137,17 @@ bac.root.plot <- ggplot(bac.root.20fam, aes(y=Abundance, x=Tree, fill = Family, 
   scale_color_manual(values = colors)+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
 bac.root.plot
-ggsave("16S_root_stackedBarplot_top20genera.png", path = "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
+ggsave("16S_root_stackedBarplot_top20family.png", path = "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
 
+cat.ord <- c("Eucalypt Root", "Pine Root", "Eucalypt Soil", "Pine Soil")
+bac.all.plot <- ggplot(bac.30fam, aes(y=Abundance, x=factor(SampleCategory, cat.ord), fill = Family, color = Family)) + 
+  geom_bar(position="fill", stat="identity")+
+  labs(x = "Sample type", y = "Relative abundance")+
+  scale_fill_manual(values = colors30)+ 
+  scale_color_manual(values = colors30)+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
+bac.all.plot
+ggsave("16S_SoilRoot_stackedBarplot_top30family.png", path = "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/StackedBarplots", width=9, height=8, dpi=300)
 
 
 
