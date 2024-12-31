@@ -98,7 +98,9 @@ bac.30fam <- subset(psz.bac, psz.bac$Family %like% bac.30fam.names & !is.na(Samp
 
 #################################### MAKE PLOTS #################################### 
 
-colors <- c(
+#get colors
+#######
+colors20 <- c(
   "#1f77b4", # Steel Blue
   "#ff7f0e", # Dark Orange
   "#2ca02c", # Forest Green
@@ -120,6 +122,42 @@ colors <- c(
   "#393b79", # Dark Blue
   "#7b4173"  # Dark Purple
 )
+
+colors30 <- c(
+  "#1f77b4", # Steel Blue
+  "#ff7f0e", # Dark Orange
+  "#2ca02c", # Forest Green
+  "#9467bd", # Medium Purple
+  "#d62728", # Brick Red
+  "#8c564b", # Brown
+  "#e377c2", # Pink
+  "#7f7f7f", # Gray
+  "#bcbd22", # Olive
+  "#ff9896", # Light Salmon
+  "#17becf", # Light Blue
+  "#98df8a", # Light Green
+  "#ffbb78", # Light Orange
+  "#c5b0d5", # Light Purple
+  "#c49c94", # Light Brown
+  "#f7b6d2", # Light Pink
+  "#dbdb8d", # Khaki
+  "#9edae5", # Pale Blue
+  "#393b79", # Dark Blue
+  "#7b4173", # Dark Purple
+  "#ffa500", # Orange
+  "#ff9896", # Light Salmon
+  "#00ced1", # Dark Turquoise
+  "#32cd32", # Lime Green
+  "#ba55d3", # Medium Orchid
+  "#daa520", # Goldenrod
+  "#00fa9a", # Medium Spring Green
+  "#4682b4", # Steel Blue
+  "#ff6347", # Tomato
+  "#48d1cc"  # Medium Turquoise
+)
+
+
+######
 
 bac.soil.plot <- ggplot(bac.soil.20fam, aes(y=Abundance, x=Tree, fill = Family, color = Family)) + 
   geom_bar(position="fill", stat="identity")+

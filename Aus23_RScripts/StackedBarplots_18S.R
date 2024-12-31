@@ -7,108 +7,96 @@ library(phyloseq)
 
 
 # read in otu tables
-amf.otu <- read.csv("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rel.csv", row.names=1)
+amf.otu <- read.csv("Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding/OTUTables/OtuMat18S_rel.csv", row.names=1)
 amf.soil.otu <- subset(amf.otu, rownames(amf.otu) %like% "%Soil%")
 amf.root.otu <- subset(amf.otu, rownames(amf.otu) %like% "%Root%")
 
 # read in taxonomy list
-amf.tax <- read_tsv("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/Aus23_16S_SilvaTaxonomy_16S.tsv")[1:2]
-amf.tax$Taxon <- str_replace_all(amf.tax$Taxon, "\\w__", "") # remove 
-amf.tax.split <- amf.tax %>% 
-  separate(Taxon, into = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep = ";") %>%
-  column_to_rownames(var = "Feature ID")
-
+amf.tax <- read.csv("Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding/AMF_Taxonomy_SplitFormat.csv")
+rownames(amf.tax) <- amf.tax[,1]
+amf.tax <- amf.tax[2:8]
 
 ######## SOIL #########
-# put amfk into phyloseq object
+# put back into phyloseq object
 ps.amf.soil <- phyloseq(otu_table(as.matrix(amf.soil.otu), taxa_are_rows=FALSE), 
-                        tax_table(as.matrix(amf.tax.split)))
+                        tax_table(as.matrix(amf.tax)))
 # melt OTU table so each taxon is a row
 psz.amf.soil <- psmelt(ps.amf.soil)
 # add tree species
 psz.amf.soil$Tree <- ifelse(grepl("E", psz.amf.soil$Sample), "Eucalypt",
                             ifelse(grepl("P", psz.amf.soil$Sample), "Pine", NA))
-write.csv(psz.amf.soil, "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OTU_16S_soil_rel_melted.csv")
+write.csv(psz.amf.soil, "Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding/OTUTables/OTU_18S_soil_rel_melted.csv")
 
-
-#Select top 20 most abundant families
-amf.soil.20fam.names <- psz.amf.soil %>%
-  filter(!is.na(Family) & Family != "NA" & Family != " uncultured") %>%
-  group_by(Family) %>%
-  summarize(TotalAbundance = sum(Abundance)) %>%
-  arrange(desc(TotalAbundance)) %>%
-  slice_head(n = 20) %>%
-  pull(Family) 
-amf.soil.20fam.names
-amf.soil.20fam <- subset(psz.amf.soil, psz.amf.soil$Family %like% amf.soil.20fam.names)
 
 ######## ROOTS #########
-# put amfk into phyloseq object
+# put back into phyloseq object
 ps.amf.root <- phyloseq(otu_table(as.matrix(amf.root.otu), taxa_are_rows=FALSE), 
-                        tax_table(as.matrix(amf.tax.split)))
+                        tax_table(as.matrix(amf.tax)))
 # melt OTU table so each taxon is a row
 psz.amf.root <- psmelt(ps.amf.root)
 # add tree species
 psz.amf.root$Tree <- ifelse(grepl("E", psz.amf.root$Sample), "Eucalypt",
                             ifelse(grepl("P", psz.amf.root$Sample), "Pine", NA))
-write.csv(psz.amf.root, "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OTU_16S_root_rel_melted.csv")
+write.csv(psz.amf.root, "Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding/OTUTables/OTU_18S_root_rel_melted.csv")
 
-#Select top 20 most abundant genera
-amf.root.20fam.names <- psz.amf.root %>%
-  filter(!is.na(Family) & Family != "NA" & Family != " uncultured" & Family != " Unknown_Family") %>%
-  group_by(Family) %>%
-  summarize(TotalAbundance = sum(Abundance)) %>%
-  arrange(desc(TotalAbundance)) %>%
-  slice_head(n = 20) %>%
-  pull(Family) 
-amf.root.20fam.names
-amf.root.20fam <- subset(psz.amf.root, psz.amf.root$Family %like% amf.root.20fam.names)
+############ SOIL AND ROOTS ############ 
+
+# put back into phyloseq object
+ps.amf <- phyloseq(otu_table(as.matrix(amf.otu), taxa_are_rows=FALSE), 
+                   tax_table(as.matrix(amf.tax)))
+# melt OTU table so each taxon is a row
+psz.amf <- psmelt(ps.amf)
+# add tree species
+psz.amf$SampleCategory <- ifelse(grepl("E", psz.amf$Sample),
+                                 ifelse(grepl("Soil", psz.amf$Sample), "Eucalypt Soil",
+                                        ifelse(grepl("Root", psz.amf$Sample), "Eucalypt Root", NA)),
+                                 ifelse(grepl("P", psz.amf$Sample),
+                                        ifelse(grepl("Soil", psz.amf$Sample), "Pine Soil",
+                                               ifelse(grepl("Root", psz.amf$Sample), "Pine Root", NA)),
+                                        NA))
+write.csv(psz.amf, "Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding/OTUTables/OTU_18S_SoilRoot_rel_melted.csv")
 
 
 #################################### MAKE PLOTS #################################### 
 
-colors <- c(
+# get colors
+colors5 <- c(
   "#1f77b4", # Steel Blue
-  "#ff7f0e", # Dark Orange
   "#2ca02c", # Forest Green
-  "#d62728", # Brick Red
-  "#9467bd", # Medium Purple
-  "#8c564b", # Brown
-  "#e377c2", # Pink
-  "#7f7f7f", # Gray
-  "#bcbd22", # Olive
-  "#17becf", # Light Blue
-  "#ff9896", # Light Salmon
-  "#98df8a", # Light Green
-  "#ffbb78", # Light Orange
-  "#c5b0d5", # Light Purple
-  "#c49c94", # Light Brown
-  "#f7b6d2", # Light Pink
-  "#dbdb8d", # Khaki
+  "#ff7f0e", # Dark Orange
   "#9edae5", # Pale Blue
-  "#393b79", # Dark Blue
-  "#7b4173"  # Dark Purple
+  "#9467bd" # Medium Purple
 )
+######
 
-amf.soil.plot <- ggplot(amf.soil.20fam, aes(y=Abundance, x=Tree, fill = Family, color = Family)) + 
+amf.soil.plot <- ggplot(psz.amf.soil, aes(y=Abundance, x=Tree, fill = Genus, color = Genus)) + 
   geom_bar(position="fill", stat="identity")+
   labs(x = "Tree species", y = "Relative abundance")+
-  scale_fill_manual(values = colors)+ 
-  scale_color_manual(values = colors)+ 
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.amfkground = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
+  scale_fill_manual(values = colors5)+ 
+  scale_color_manual(values = colors5)+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
 amf.soil.plot
-ggsave("16S_soil_stackedBarplot_top20genera.png", path = "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
+ggsave("18S_soil_stackedBarplot_genus.png", path = "Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
 
-amf.root.plot <- ggplot(amf.root.20fam, aes(y=Abundance, x=Tree, fill = Family, color = Family)) + 
+amf.root.plot <- ggplot(psz.amf.root, aes(y=Abundance, x=Tree, fill = Genus, color = Genus)) + 
   geom_bar(position="fill", stat="identity")+
   labs(x = "Tree species", y = "Relative abundance")+
-  scale_fill_manual(values = colors)+
-  scale_color_manual(values = colors)+ 
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.amfkground = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
+  scale_fill_manual(values = colors5)+
+  scale_color_manual(values = colors5)+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
 amf.root.plot
-ggsave("16S_root_stackedBarplot_top20genera.png", path = "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
+ggsave("18S_root_stackedBarplot_genus.png", path = "Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding/StackedBarplots", width=8, height=10, dpi=300)
 
 
+cat.ord <- c("Eucalypt Root", "Pine Root", "Eucalypt Soil", "Pine Soil")
+amf.all.plot <- ggplot(psz.amf, aes(y=Abundance, x=factor(SampleCategory, cat.ord), fill = Genus, color = Genus)) + 
+  geom_bar(position="fill", stat="identity")+
+  labs(x = "Sample type", y = "Relative abundance")+
+  scale_fill_manual(values = colors5)+ 
+  scale_color_manual(values = colors5)+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
+amf.all.plot
+ggsave("18S_SoilRoot_stackedBarplot_genus.png", path = "Aus-Invasions-2023-Course/Aus23_18S_Metabarcoding/StackedBarplots", width=7, height=6, dpi=300)
 
 
 

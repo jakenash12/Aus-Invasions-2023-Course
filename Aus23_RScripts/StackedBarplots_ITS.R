@@ -18,6 +18,10 @@ its.tax.split <- its.tax %>%
   mutate(Kingdom = "Fungi") %>%
   select(Kingdom, everything())
 
+############################################################################################################
+# ALL FUNGI
+############################################################################################################
+
 ######## SOIL #########
 # put back into phyloseq object
 ps.its.soil <- phyloseq(otu_table(as.matrix(its.soil.otu), taxa_are_rows=FALSE), 
@@ -106,6 +110,18 @@ its.30gen <- subset(psz.its, psz.its$Genus %like% its.30gen.names & !is.na(Sampl
 
 #get colors
 #######
+colors10 <- c(
+  "#1f77b4", # Steel Blue
+  "#ff7f0e", # Dark Orange
+  "#2ca02c", # Forest Green
+  "#9467bd", # Medium Purple
+  "#e377c2", # Pink
+  "#17becf", # Light Blue
+  "#98df8a", # Light Green
+  "#c5b0d5", # Light Purple
+  "#9edae5", # Pale Blue
+  "#393b79" # Dark Blue
+)
 colors20 <- c(
   "#1f77b4", # Steel Blue
   "#ff7f0e", # Dark Orange
@@ -195,7 +211,39 @@ its.all.plot
 ggsave("its_SoilRoot_stackedBarplot_top30genera.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=9, height=8, dpi=300)
 
 
+############################################################################################################
+# EMF ONLY
+############################################################################################################
+
+# read in taxonomy list with functional guilds
+its.tax.fxn <- read_tsv("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited_FunT_FunG.tsv")
+colnames(its.tax.fxn)[1] <- "Feature_ID"
+# get list of ectomycorrhizal OTUs
+emf.otu.list <- its.tax.fxn %>%
+  filter(grepl("Ectomycorrhizal", guild, ignore.case = TRUE)) %>%
+  pull(Feature_ID)
+# subset main df for only EMF taxa
+psz.emf <- subset(psz.its, psz.its$OTU %in% emf.otu.list)
+
+#Select top 10 most abundant genera
+emf.10gen.names <- psz.emf %>%
+  filter(!is.na(Genus) & Genus != "NA" & !grepl("Incertae_sedis", Genus)) %>%
+  group_by(Genus) %>%
+  summarize(TotalAbundance = sum(Abundance)) %>%
+  arrange(desc(TotalAbundance)) %>%
+  slice_head(n = 10) %>%
+  pull(Genus) 
+emf.10gen.names
+emf.10gen <- subset(psz.emf, psz.emf$Genus %like% emf.10gen.names & !is.na(SampleCategory))
 
 
-
+cat.ord <- c("Eucalypt Root", "Pine Root", "Eucalypt Soil", "Pine Soil")
+emf.plot <- ggplot(emf.10gen, aes(y=Abundance, x=factor(SampleCategory, cat.ord), fill = Genus, color = Genus)) + 
+  geom_bar(position="fill", stat="identity")+
+  labs(x = "Sample type", y = "Relative abundance")+
+  scale_fill_manual(values = colors10)+ 
+  scale_color_manual(values = colors10)+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
+emf.plot
+ggsave("EMF_SoilRoot_stackedBarplot_top10genera.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=7, height=6, dpi=300)
 
