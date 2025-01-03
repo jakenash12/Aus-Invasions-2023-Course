@@ -17,6 +17,13 @@ its.tax.split <- its.tax %>%
   column_to_rownames(var = "Feature ID") %>%
   mutate(Kingdom = "Fungi") %>%
   select(Kingdom, everything())
+# append with info from Rytas on native vs introduced fungi
+origin <- read.csv("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_RytasEdits.csv")[c(1,15)]
+origin[origin ==""] <- NA
+origin[origin =="introduced"] <- "Introduced"
+colnames(origin)[1] <- "OTU"
+its.tax.split$OTU <- rownames(its.tax.split)
+its.tax.split <- merge(its.tax.split, origin, by = "OTU", all.x=TRUE)
 
 ############################################################################################################
 # ALL FUNGI
@@ -92,7 +99,10 @@ psz.its$SampleCategory <- ifelse(grepl("E", psz.its$Sample),
                                                     ifelse(grepl("Root", psz.its$Sample), "Pine Root", NA)),
                                              NA))
 write.csv(psz.its, "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OTU_ITS_SoilRoot_rel_melted.csv")
+psz.its <- read.csv("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OTU_ITS_SoilRoot_rel_melted.csv", row.names=1)
 
+# add native vs introduced column
+psz.its <- merge(psz.its, origin, by = "OTU", all.x=TRUE)
 
 its.30gen.names <- psz.its %>%
   filter(!is.na(Genus) & Genus != "NA" & !grepl("Incertae_sedis", Genus)) %>%
@@ -210,6 +220,35 @@ its.all.plot <- ggplot(its.30gen, aes(y=Abundance, x=factor(SampleCategory, cat.
 its.all.plot
 ggsave("its_SoilRoot_stackedBarplot_top30genera.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=9, height=8, dpi=300)
 
+its.origin.plot <- ggplot(psz.its[!is.na(psz.its$SampleCategory),], aes(y=Abundance, x=factor(SampleCategory, cat.ord), fill = prevenance, color = prevenance)) + 
+  geom_bar(position="fill", stat="identity")+
+  labs(x = "Sample type", y = "Relative abundance")+
+  scale_fill_manual(values = c("dodgerblue1", "chartreuse3", "gold"))+ 
+  scale_color_manual(values = c("dodgerblue1", "chartreuse3", "gold"))+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
+its.origin.plot
+ggsave("its_native_introduced_stackedBarplot.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=9, height=8, dpi=300)
+
+
+psz.its.origin <- psz.its[!is.na(psz.its$SampleCategory) & !is.na(psz.its$prevenance) & !psz.its$prevenance == "uncertain",]
+psz.its.origin <- psz.its.origin[order(psz.its.origin$prevenance),]
+gen.ord <- unique(psz.its.origin$Genus)
+gen.orig <- unique(psz.its.origin[c(9,12)])
+origin.col <- c("#FAC898", "#FFA500", "#F28C28", "#E34A27", "#8B4000", "#4B0082", "#800080", "#8A2BE2", "#bc85fa", "#DA70D6", "#FF8BFF", "#DDA0DD", "#CEC2EB", "#E6E6FA")
+origin.col2 <- c("#FAC898", "#FFA500", "#F28C28", "#E34A27", "#8B4000","#2e035e","#4B0082", "#5c07bc", "#8A2BE2", "#bc85fa", "#DA70D6", "#DDA0DD", "#CEC2EB", "#E6E6FA")
+origin.col2 <- c("#FAC898", "#FFA500", "#F28C28", "#E34A27", "#8B4000","#2e035e","#4B0082", "#5c07bc", "#7409eb", "#8A2BE2", "#a75ef8", "#c08dfa", "#dabcfc", "#f4ebfe")
+
+
+its.origin.only.plot <- ggplot(psz.its.origin, aes(y=Abundance, x=factor(SampleCategory, cat.ord), fill = factor(Genus, gen.ord), color = factor(Genus, gen.ord))) + 
+  geom_bar(position="fill", stat="identity")+
+  labs(x = "Sample type", y = "Relative abundance")+
+  scale_fill_manual(values = origin.col2)+ 
+  scale_color_manual(values = origin.col2)+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
+its.origin.only.plot
+ggsave("its_native_introduced_stackedBarplot.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=9, height=8, dpi=300)
+
+
 
 ############################################################################################################
 # EMF ONLY
@@ -246,4 +285,16 @@ emf.plot <- ggplot(emf.10gen, aes(y=Abundance, x=factor(SampleCategory, cat.ord)
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
 emf.plot
 ggsave("EMF_SoilRoot_stackedBarplot_top10genera.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=7, height=6, dpi=300)
+
+
+tax.org <- subset(tax.test, tax.test$prevenance == NA)
+
+
+
+
+
+
+
+
+
 
