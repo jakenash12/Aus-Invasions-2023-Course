@@ -40,8 +40,6 @@ summary(mod)
 lin_mod <- lm(ergosterol~ ECM_abund_soil+TreeSpecies, ds)
 summary(lin_mod)
 
-
-mod
 #Interaction term is not significant. ECM abundance in soil seems to be a part of the ergosterol. Ergosterol higher around pines. 
 
 plot <- ds %>%
