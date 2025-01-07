@@ -364,3 +364,37 @@ create_significant_forest_plot <- function(effect_data) {
 
 create_significant_forest_plot(significant_only)
 
+
+# BB analyzing soil root diffs --------------------------------------------
+
+ds <- all_significant_effects
+
+
+ds$source <- ifelse(grepl("soil", ds$Variable, ignore.case = TRUE), "Soil", 
+                    ifelse(ds$Variable == "ergosterol", "Soil", 
+                           ifelse(grepl("litter", ds$Variable, ignore.case = TRUE), "Litter",
+                                  ifelse(grepl("_root$", ds$Variable), "Root", NA))))
+
+# Create 'Microbe_Type' column based on the beginning of 'Variable'
+ds$Microbe_Type <- ifelse(grepl("^(Path|Fungal|Endo|AMF|ECM|Sap)", ds$Variable), "Fungal", 
+                          ifelse(grepl("^(Bac|OtherBac|Oligotroph|Copiotroph)", ds$Variable), "Bacterial", NA))
+
+# ds <- ds[!grepl("Simpson|Invsimpson", ds$Variable), ]
+
+library(ggrepel)
+
+plot <- ds %>%
+  filter(!is.na(source)) %>%
+  ggplot(aes(y = EffectSize, x = source)) +
+  geom_boxplot() +
+  geom_jitter(aes(color = source), width = 0.2) +  # Jitter points
+  geom_label_repel(aes(label = Variable), max.overlaps = Inf)+
+  theme_bw() +
+  labs(x = "Source", y = "Effect Size", title = "Effect Size by Source") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+mod <- lm(EffectSize~source, significant_only)
+summary(mod)
+#In terms of significant effects sizes, roots are way more positive than soil. Kind of interesting. Only exception with roots is Endophyte Richness
+ggsave("C:/Users/beabo/OneDrive/Documents/NAU/Classes Archived/Australia Co-Invasions Course 2023/Aus-Invasions-2023-Course/Plots/roots_vs_soil_effects.jpg", plot, width = 8, height = 7, unit = "in")
+
