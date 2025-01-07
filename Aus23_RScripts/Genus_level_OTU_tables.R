@@ -2,9 +2,10 @@
 # 1/6/24 CV
 
 ######## ITS ###########
-# read in OTU tables with relative abundances
-otu.its <- read.csv("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rel.csv", row.names=1)
-
+# read in rarefied OTU tables
+otu.its =
+  read_delim("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare.csv", delim=",") %>%
+  column_to_rownames(var = colnames(.)[1])
 # read in taxonomy
 its.tax <- read_tsv("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/ITS2_Dada2_repseqs97_taxonomy_edited_FunT_FunG.tsv")
 its.tax.split <- its.tax %>% 
@@ -30,13 +31,14 @@ otu.genus.its <- otu.its.t %>%
   as.data.frame() 
 
 # save as csv
-write.csv(otu.genus.its, "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rel_byGenus.csv")
+write.csv(otu.genus.its, "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare_byGenus.csv")
 
 ######## Pooled data
 
 # read in OTU tables with relative abundances
-otu.its.pool <- read.csv("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_pooled_rel.csv", row.names=1) %>%
-  filter(row.names(.) != "Neg_Control")
+otu.its.pool =
+  read_delim("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare_pooled.csv", delim=",") %>%
+  column_to_rownames(var = colnames(.)[1])
 
 # adjust so OTU names are rows
 otu.its.pool.t <- as.data.frame(t(otu.its.pool))
@@ -59,7 +61,7 @@ write.csv(otu.genus.its.pool, "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding
 
 ######## 16S ###########
 # read in OTU tables with relative abundances
-otu.16S <- read.csv("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rel.csv", row.names=1)
+otu.16S <- read.csv("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rare.csv", row.names=1)
 
 # read in taxonomy
 bac.tax <- read_tsv("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/Aus23_16S_SilvaTaxonomy_16S.tsv")[1:2]
@@ -89,13 +91,12 @@ otu.genus.16S <- otu.16S.t %>%
   as.data.frame()
 
 # save as csv
-write.csv(otu.genus.16S, "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rel_byGenus.csv")
+write.csv(otu.genus.16S, "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rare_byGenus.csv")
 
 ######## Pooled data
 
 # read in OTU tables with relative abundances
-otu.16S.pool <- read.csv("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_pooled_rel.csv", row.names=1) %>%
-  filter(row.names(.) != "Neg_Control")
+otu.16S.pool <- read.csv("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rare_pooled.csv", row.names=1)
 
 # adjust so OTU names are rows
 otu.16S.pool.t <- as.data.frame(t(otu.16S.pool))
