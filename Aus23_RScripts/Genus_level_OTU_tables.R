@@ -1,4 +1,5 @@
 # Create genus-level OTU tables
+# 1/6/24 CV
 
 ######## ITS ###########
 # read in OTU tables with relative abundances
@@ -30,6 +31,31 @@ otu.genus.its <- otu.its.t %>%
 
 # save as csv
 write.csv(otu.genus.its, "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rel_byGenus.csv")
+
+######## Pooled data
+
+# read in OTU tables with relative abundances
+otu.its.pool <- read.csv("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_pooled_rel.csv", row.names=1) %>%
+  filter(row.names(.) != "Neg_Control")
+
+# adjust so OTU names are rows
+otu.its.pool.t <- as.data.frame(t(otu.its.pool))
+otu.its.pool.t <- merge(otu.its.pool.t, its.tax.split, by = 0, all.x=TRUE)
+colnames(otu.its.pool.t)[1] <- "OTU"
+otu.its.pool.t <- otu.its.pool.t[!is.na(otu.its.pool.t$Genus),]
+
+# group by Genus
+otu.genus.its.pool <- otu.its.pool.t %>%
+  group_by(Genus) %>%
+  summarise(across(where(is.numeric), sum)) %>%
+  column_to_rownames("Genus") %>%
+  t() %>%
+  as.data.frame() 
+
+# save as csv
+write.csv(otu.genus.its.pool, "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rel_byGenus_pooled.csv")
+
+
 
 ######## 16S ###########
 # read in OTU tables with relative abundances
@@ -65,6 +91,28 @@ otu.genus.16S <- otu.16S.t %>%
 # save as csv
 write.csv(otu.genus.16S, "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rel_byGenus.csv")
 
+######## Pooled data
+
+# read in OTU tables with relative abundances
+otu.16S.pool <- read.csv("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_pooled_rel.csv", row.names=1) %>%
+  filter(row.names(.) != "Neg_Control")
+
+# adjust so OTU names are rows
+otu.16S.pool.t <- as.data.frame(t(otu.16S.pool))
+otu.16S.pool.t <- merge(otu.16S.pool.t, bac.tax.split, by = 0, all.x=TRUE)
+colnames(otu.16S.pool.t)[1] <- "OTU"
+otu.16S.pool.t <- otu.16S.pool.t[!is.na(otu.16S.pool.t$Genus),]
+
+# group by Genus
+otu.genus.16S.pool <- otu.16S.pool.t %>%
+  group_by(Genus) %>%
+  summarise(across(where(is.numeric), sum)) %>%
+  column_to_rownames("Genus") %>%
+  t() %>%
+  as.data.frame() 
+
+# save as csv
+write.csv(otu.genus.16S.pool, "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rel_byGenus_pooled.csv")
 
 
 
