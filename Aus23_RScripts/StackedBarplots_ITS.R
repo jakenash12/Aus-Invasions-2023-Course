@@ -235,18 +235,16 @@ psz.its.origin <- psz.its.origin[order(psz.its.origin$prevenance),]
 gen.ord <- unique(psz.its.origin$Genus)
 gen.orig <- unique(psz.its.origin[c(9,12)])
 origin.col <- c("#FAC898", "#FFA500", "#F28C28", "#E34A27", "#8B4000", "#4B0082", "#800080", "#8A2BE2", "#bc85fa", "#DA70D6", "#FF8BFF", "#DDA0DD", "#CEC2EB", "#E6E6FA")
-origin.col2 <- c("#FAC898", "#FFA500", "#F28C28", "#E34A27", "#8B4000","#2e035e","#4B0082", "#5c07bc", "#8A2BE2", "#bc85fa", "#DA70D6", "#DDA0DD", "#CEC2EB", "#E6E6FA")
-origin.col2 <- c("#FAC898", "#FFA500", "#F28C28", "#E34A27", "#8B4000","#2e035e","#4B0082", "#5c07bc", "#7409eb", "#8A2BE2", "#a75ef8", "#c08dfa", "#dabcfc", "#f4ebfe")
-
+origin.col2 <- c("#FAC898", "#FFA500", "#F28C28", "#E34A27", "#C35214","#2e035e","#4B0082", "#5c07bc", "#7409eb", "#8A2BE2", "#a75ef8", "#c08dfa", "#dabcfc", "#f4ebfe")
 
 its.origin.only.plot <- ggplot(psz.its.origin, aes(y=Abundance, x=factor(SampleCategory, cat.ord), fill = factor(Genus, gen.ord), color = factor(Genus, gen.ord))) + 
   geom_bar(position="fill", stat="identity")+
-  labs(x = "Sample type", y = "Relative abundance")+
+  labs(x = "Sample type", y = "Relative abundance", fill="Genus", color="Genus")+
   scale_fill_manual(values = origin.col2)+ 
   scale_color_manual(values = origin.col2)+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size=13),axis.title.y = element_text(size=13), axis.text=element_text(size=12))
 its.origin.only.plot
-ggsave("its_native_introduced_stackedBarplot.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=9, height=8, dpi=300)
+ggsave("its_native_introduced_stackedBarplot.png", path = "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/StackedBarplots", width=8, height=6, dpi=300)
 
 
 
