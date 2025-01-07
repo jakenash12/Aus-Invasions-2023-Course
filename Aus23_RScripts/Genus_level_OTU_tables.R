@@ -55,8 +55,7 @@ otu.genus.its.pool <- otu.its.pool.t %>%
   as.data.frame() 
 
 # save as csv
-write.csv(otu.genus.its.pool, "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rel_byGenus_pooled.csv")
-
+write.csv(otu.genus.its.pool, "Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare_byGenus_pooled.csv")
 
 
 ######## 16S ###########
@@ -113,7 +112,7 @@ otu.genus.16S.pool <- otu.16S.pool.t %>%
   as.data.frame() 
 
 # save as csv
-write.csv(otu.genus.16S.pool, "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rel_byGenus_pooled.csv")
+write.csv(otu.genus.16S.pool, "Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rare_byGenus_pooled.csv")
 
 
 
