@@ -96,6 +96,8 @@ OtuMatITS_rare_pooled=
   mutate(TreeSampleType = gsub("-.", "", rownames(.))) %>% #make a new column with the tree ID and sample type
   group_by(TreeSampleType) %>% #group dataframe by tree ID and sample type
   summarise(across(everything(), sum, .names = "{.col}")) %>% #sum together sequence counts for all samples that were from the same tree and sample type
+  ungroup() %>%
+  rename_with(~ gsub("^X", "", .), starts_with("X")) %>% # remove "X" prefix from columns if they exist
   column_to_rownames("TreeSampleType") #set rownames to tree ID_sample type
 
 ```
