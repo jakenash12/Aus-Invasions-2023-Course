@@ -8,6 +8,8 @@ library(readxl)
 library(dplyr)
 library(tidyr)
 
+setwd("C:/Users/beabo/OneDrive/Documents/NAU/Classes Archived/Australia Co-Invasions Course 2023/Aus-Invasions-2023-Course/Merged_data")
+
 ds <- read.csv("Aus23_allData_19Nov24.csv")
 
 theme_set(theme_bw())
@@ -31,8 +33,13 @@ ggsave("Aus-Invasions-2023-Course/Plots/Analyses/litterdepth_vs_ecm_moisture_tre
 
 
 hist(ds$ergosterol) #Looks more like a gamma dist...
+
 mod <- glm(ergosterol ~ ECM_abund_soil+TreeSpecies, family = "Gamma", ds)
 summary(mod)
+
+lin_mod <- lm(ergosterol~ ECM_abund_soil+TreeSpecies, ds)
+summary(lin_mod)
+
 #Interaction term is not significant. ECM abundance in soil seems to be a part of the ergosterol. Ergosterol higher around pines. 
 
 plot <- ds %>%
