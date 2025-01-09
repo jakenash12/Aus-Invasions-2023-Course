@@ -1,0 +1,277 @@
+---
+title: "Final_PCoAs"
+output: html_document
+date: "2025-01-09"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#This script was used to generate PCoA plots for the New Phytologist manuscript. The script is split by amplicon following data and library loading. PerMANOVA tests are at bottom of script
+
+#Set WD
+```{r}
+setwd("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/PCoAs")
+```
+
+#Load libararies
+```{r}
+library(tidyverse)
+library(vegan)
+library(dplyr)
+library(stats)
+```
+
+#Reading in metadata & splitting by root/soil
+```{r}
+#Set seed
+set.seed(2025)
+
+#Metadata
+meta = read_delim("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/PCoAs/MetabarcodingMetadata.txt")
+#Removing unnecessary rows
+meta = meta[-c(1,38),]
+#Subset for roots & soil
+root_meta = meta[c(1,2,5,6,9,10,13,14,17,18,21,22,25,26,29,30,33,34,37,38,41,42,45,46,49,50,53,54,57,58,61,62,65,66,69,70),]
+soil_meta = meta[c(3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,35,36,39,40,43,44,47,48,51,52,55,56,59,60,63,64,67,68,71,72),]
+#Make them dfs
+root_meta = as.data.frame(root_meta)
+soil_meta = as.data.frame(soil_meta)
+```
+
+#Bacteria
+```{r}
+#Cleaning & Reformatting data
+#Read in raw count data
+bac_raw = read.csv("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/PCoAs/Aus23_16S_ASV_table.csv")
+#Transpose to put samples as rows
+bac_raw = as.data.frame(t(bac_raw))
+#Make first row column headers
+names(bac_raw) <- bac_raw[1,]
+bac_raw <- bac_raw[-1,]
+#Make df columns numeric
+bac_raw <- sapply(bac_raw, as.numeric)
+#Bacterial root matrix
+bac_root = bac_raw[c(1,2,5,6,9,10,13,14,17,18,21,22,25,26,29,30,33,34,38,39,42,43,46,47,50,51,54,55,58,59,62,63,66,67,70,71),]
+#Bacterial soil matrix
+bac_soil = bac_raw[c(3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,35,36,40,41,44,45,48,49,52,53,56,57,60,61,64,65,68,69,72,73),]
+
+####Roots####
+#Calculate distance matrix
+bac_root_dist = vegdist(bac_root, method = "robust.aitchison")
+#Fit PCoA
+bac_root_pcoa_result <- cmdscale(bac_root_dist, k=2, eig=TRUE, add=TRUE)
+#Checking variation explained by first two axes
+bac_root_pcoa_result$eig[1:2]
+sum(bac_root_pcoa_result$eig[1:2]) / sum(bac_root_pcoa_result$eig)*100
+#These two axes capture about 34% of variation in the data
+# get x, y points
+positions <- bac_root_pcoa_result$points
+# name the columns
+colnames(positions) = c('pcoa1', 'pcoa2')
+# convert the matrix into tibble
+positions_tibble <- positions %>%
+  as_tibble(rownames = 'sample')
+# Joining PCoA points with metadata
+filt_sample_info <- 
+  cbind(positions_tibble, root_meta)
+#Creating PCoA
+filt_sample_info %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, color = TreeSpecies)) +
+  geom_point(size = 3) +
+  scale_color_manual(values=c("#FF9900", "#000DCC"), name="Species",
+                     breaks=c("Eucalyptus", "Pine"),
+                     labels=c("Eucalyptus", "Pine")) +
+  theme_classic() +
+  stat_ellipse() +
+  labs(x = "PC1 [19.63%]", y = "PC2 [13.76%]")
+
+####Soil####
+#Calculate distance matrix
+bac_soil_dist = vegdist(bac_soil, method = "robust.aitchison")
+#Fit PCoA
+bac_soil_pcoa_result <- cmdscale(bac_soil_dist, k=2, eig=TRUE, add=TRUE)
+#Checking variation explained by first two axes
+bac_soil_pcoa_result$eig[1:2]
+sum(bac_soil_pcoa_result$eig[1:2]) / sum(bac_soil_pcoa_result$eig)*100
+#These two axes capture about 27% of variation in the data
+# get x, y points
+positions <- bac_soil_pcoa_result$points
+# name the columns
+colnames(positions) = c('pcoa1', 'pcoa2')
+# convert the matrix into tibble
+positions_tibble <- positions %>%
+  as_tibble(rownames = 'sample')
+# Joining PCoA points with metadata
+filt_sample_info <- 
+  cbind(positions_tibble, soil_meta)
+#Creating PCoA
+filt_sample_info %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, color = TreeSpecies)) +
+  geom_point(size = 3) +
+  scale_color_manual(values=c("#FF9900", "#000DCC"), name="Species",
+                     breaks=c("Eucalyptus", "Pine"),
+                     labels=c("Eucalyptus", "Pine")) +
+  theme_classic() +
+  stat_ellipse() +
+  labs(x = "PC1 [17.26%]", y = "PC2 [9.12%]")
+```
+
+#Fungi
+```{r}
+#Cleaning & Reformatting data
+#Read in raw count data
+fun_raw = read.csv("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/PCoAs/Aus23_ITS2_OTU_Table.csv")
+#Transpose to put samples as rows
+fun_raw = as.data.frame(t(fun_raw))
+#Make first row column headers
+names(fun_raw) <- fun_raw[1,]
+fun_raw <- fun_raw[-1,]
+#Make df columns numeric
+fun_raw <- sapply(fun_raw, as.numeric)
+#Fungal root matrix
+fun_root = fun_raw[c(1,2,5,6,9,10,13,14,17,18,21,22,25,26,29,30,33,34,38,39,42,43,46,47,50,51,54,55,58,59,62,63,66,67,70,71),]
+#Fungal soil matrix
+fun_soil = fun_raw[c(3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,35,36,40,41,44,45,48,49,52,53,56,57,60,61,64,65,68,69,72,73),]
+
+####Roots####
+#Calculate distance matrix
+fun_root_dist = vegdist(fun_root, method = "robust.aitchison")
+#Fit PCoA
+fun_root_pcoa_result <- cmdscale(fun_root_dist, k=2, eig=TRUE, add=TRUE)
+#Checking variation explained by first two axes
+fun_root_pcoa_result$eig[1:2]
+sum(fun_root_pcoa_result$eig[1:2]) / sum(fun_root_pcoa_result$eig)*100
+#These two axes capture about 17% of variation in the data
+# get x, y points
+positions <- fun_root_pcoa_result$points
+# name the columns
+colnames(positions) = c('pcoa1', 'pcoa2')
+# convert the matrix into tibble
+positions_tibble <- positions %>%
+  as_tibble(rownames = 'sample')
+# Joining PCoA points with metadata
+filt_sample_info <- 
+  cbind(positions_tibble, root_meta)
+#Creating PCoA
+filt_sample_info %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, color = TreeSpecies)) +
+  geom_point(size = 3) +
+  scale_color_manual(values=c("#FF9900", "#000DCC"), name="Species",
+                     breaks=c("Eucalyptus", "Pine"),
+                     labels=c("Eucalyptus", "Pine")) +
+  theme_classic() +
+  stat_ellipse() +
+  labs(x = "PC1 [8.64%]", y = "PC2 [8.15%]")
+
+####Soil####
+#Calculate distance matrix
+fun_soil_dist = vegdist(fun_soil, method = "robust.aitchison")
+#Fit PCoA
+fun_soil_pcoa_result <- cmdscale(fun_soil_dist, k=2, eig=TRUE, add=TRUE)
+#Checking variation explained by first two axes
+fun_soil_pcoa_result$eig[1:2]
+sum(fun_soil_pcoa_result$eig[1:2]) / sum(fun_soil_pcoa_result$eig)*100
+#These two axes capture about 12% of variation in the data
+# get x, y points
+positions <- fun_soil_pcoa_result$points
+# name the columns
+colnames(positions) = c('pcoa1', 'pcoa2')
+# convert the matrix into tibble
+positions_tibble <- positions %>%
+  as_tibble(rownames = 'sample')
+# Joining PCoA points with metadata
+filt_sample_info <- 
+  cbind(positions_tibble, soil_meta)
+#Creating PCoA
+filt_sample_info %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, color = TreeSpecies)) +
+  geom_point(size = 3) +
+  scale_color_manual(values=c("#FF9900", "#000DCC"), name="Species",
+                     breaks=c("Eucalyptus", "Pine"),
+                     labels=c("Eucalyptus", "Pine")) +
+  theme_classic() +
+  stat_ellipse() +
+  labs(x = "PC1 [5.81%]", y = "PC2 [5.60%]")
+```
+
+#AMF (18S)
+```{r}
+#Cleaning & Reformatting data
+#Read in raw count data
+amf_raw = read.csv("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/PCoAs/Aus23_18S_FeatureTable.csv")
+#Transpose to put samples as rows
+amf_raw = as.data.frame(t(amf_raw))
+#Make first row column headers
+names(amf_raw) <- amf_raw[1,]
+amf_raw <- amf_raw[-1,]
+#Make df columns numeric
+amf_raw <- sapply(amf_raw, as.numeric)
+#AMF root matrix
+amf_root = amf_raw[c(1,2,5,6,9,10,13,14,17,18,21,22,25,26,29,30,33,34,37,38,41,42,45,46,49,50,53,54,57,58,61,62,65,66,69,70),]
+#AMF soil matrix
+amf_soil = amf_raw[c(3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,35,36,39,40,43,44,47,48,51,52,55,56,59,60,63,64,67,68,72,72),]
+
+####Roots####
+#Calculate distance matrix
+amf_root_dist = vegdist(amf_root, method = "robust.aitchison")
+#Fit PCoA
+amf_root_pcoa_result <- cmdscale(amf_root_dist, k=2, eig=TRUE, add=TRUE)
+#Checking variation explained by first two axes
+amf_root_pcoa_result$eig[1:2]
+sum(amf_root_pcoa_result$eig[1:2]) / sum(amf_root_pcoa_result$eig)*100
+#These two axes capture about 12% of variation in the data
+# get x, y points
+positions <- amf_root_pcoa_result$points
+# name the columns
+colnames(positions) = c('pcoa1', 'pcoa2')
+# convert the matrix into tibble
+positions_tibble <- positions %>%
+  as_tibble(rownames = 'sample')
+# Joining PCoA points with metadata
+filt_sample_info <- 
+  cbind(positions_tibble, root_meta)
+#Creating PCoA
+filt_sample_info %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, color = TreeSpecies)) +
+  geom_point(size = 3) +
+  scale_color_manual(values=c("#FF9900", "#000DCC"), name="Species",
+                     breaks=c("Eucalyptus", "Pine"),
+                     labels=c("Eucalyptus", "Pine")) +
+  theme_classic() +
+  stat_ellipse() +
+  labs(x = "PC1 [6.25%]", y = "PC2 [5.51%]")
+
+####Soil####
+#Calculate distance matrix
+amf_soil_dist = vegdist(amf_soil, method = "robust.aitchison")
+#Fit PCoA
+amf_soil_pcoa_result <- cmdscale(amf_soil_dist, k=2, eig=TRUE, add=TRUE)
+#Checking variation explained by first two axes
+amf_soil_pcoa_result$eig[1:2]
+sum(amf_soil_pcoa_result$eig[1:2]) / sum(amf_soil_pcoa_result$eig)*100
+#These two axes capture about 12% of variation in the data
+# get x, y points
+positions <- amf_soil_pcoa_result$points
+# name the columns
+colnames(positions) = c('pcoa1', 'pcoa2')
+# convert the matrix into tibble
+positions_tibble <- positions %>%
+  as_tibble(rownames = 'sample')
+# Joining PCoA points with metadata
+filt_sample_info <- 
+  cbind(positions_tibble, soil_meta)
+#Creating PCoA
+filt_sample_info %>%
+  ggplot(aes(x=pcoa1, y=pcoa2, color = TreeSpecies)) +
+  geom_point(size = 3) +
+  scale_color_manual(values=c("#FF9900", "#000DCC"), name="Species",
+                     breaks=c("Eucalyptus", "Pine"),
+                     labels=c("Eucalyptus", "Pine")) +
+  theme_classic() +
+  stat_ellipse() +
+  labs(x = "PC1 [6.02%]", y = "PC2 [5.82%]")
+```
