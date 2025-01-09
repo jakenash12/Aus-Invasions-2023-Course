@@ -53,7 +53,9 @@ TaxMat16S_SILVA=
   rename("otu"="Feature ID") %>%
   select(-Confidence) %>%
   separate_wider_delim(too_few="align_start", cols = Taxon, delim = ";", names = c("Kingdom", "Phylum","Class", "Order","Family","Genus","Species", "SH")) %>%
-  mutate(across(!contains("otu"), ~extract_text(.)))
+  mutate(across(!contains("otu"), ~extract_text(.))) %>%
+  mutate(across(everything(), ~ifelse(grepl("uncultured", ., fixed = TRUE), NA, .))) %>%
+  mutate(across(everything(), ~ifelse(grepl("Unknown", ., fixed = TRUE), NA, .)))
 ```
 
 ## LINDA test for ITS samples
