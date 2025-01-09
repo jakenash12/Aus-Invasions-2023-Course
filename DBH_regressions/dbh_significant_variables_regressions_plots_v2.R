@@ -45,8 +45,8 @@ ggplot(data_long_signif, aes(x = dbh_cm, y = Value, color = factor(TreeSpecies, 
     strip.text = element_text(size = 10, face = "bold"),  # Facet label formatting
     axis.title = element_text(size = 12),
     axis.text = element_text(colour="black"),
-    panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(),
-    axis.line = element_line(colour = "black")
+    axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()
   )
 
 ggsave("Aus-Invasions-2023-Course/DBH_regressions/Regression_Plots_DBH_vs_Signif_Variables_Faceted_Stats_v2.png", width = 14, height = 8, dpi = 300)
