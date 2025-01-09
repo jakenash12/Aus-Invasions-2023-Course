@@ -1,0 +1,205 @@
+---
+title: "Final_PerMANOVAs"
+output: html_document
+date: "2025-01-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#This script was used to conduct PerMANOVA & BetaDisper tests for the New Phytologist manuscript. The script is split by amplicon following data and library loading. 
+
+#Set WD
+```{r}
+setwd("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/Aus23_RScripts")
+```
+
+#Load libararies
+```{r}
+library(tidyverse)
+library(vegan)
+library(dplyr)
+library(stats)
+```
+
+#Reading in metadata & splitting by root/soil
+```{r}
+#Set seed
+set.seed(2025)
+
+#Metadata
+meta = read_delim("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/PCoAs/MetabarcodingMetadata.txt")
+#Removing unnecessary rows
+meta = meta[-c(1,38),]
+#Subset for roots & soil
+root_meta = meta[c(1,2,5,6,9,10,13,14,17,18,21,22,25,26,29,30,33,34,37,38,41,42,45,46,49,50,53,54,57,58,61,62,65,66,69,70),]
+soil_meta = meta[c(3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,35,36,39,40,43,44,47,48,51,52,55,56,59,60,63,64,67,68,71,72),]
+#Make them dfs
+root_meta = as.data.frame(root_meta)
+soil_meta = as.data.frame(soil_meta)
+```
+
+####PERMANOVAS######
+
+#Bacteria
+```{r}
+#Cleaning & Reformatting data
+#Read in raw count data
+bac_raw = read.csv("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/PCoAs/Aus23_16S_ASV_table.csv")
+#Transpose to put samples as rows
+bac_raw = as.data.frame(t(bac_raw))
+#Make first row column headers
+names(bac_raw) <- bac_raw[1,]
+bac_raw <- bac_raw[-1,]
+#Make df columns numeric
+bac_raw <- sapply(bac_raw, as.numeric)
+#Bacterial root matrix
+bac_root = bac_raw[c(1,2,5,6,9,10,13,14,17,18,21,22,25,26,29,30,33,34,38,39,42,43,46,47,50,51,54,55,58,59,62,63,66,67,70,71),]
+#Bacterial soil matrix
+bac_soil = bac_raw[c(3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,35,36,40,41,44,45,48,49,52,53,56,57,60,61,64,65,68,69,72,73),]
+
+
+#Running PERMANOVA
+#Roots
+bac_root_perm = adonis2(bac_root ~ TreeSpecies, data=root_meta, method="robust.aitchison")
+bac_root_perm
+#R2 = 0.05347, p = 0.001, pseudo-F = 1.9208
+
+#Soil
+bac_soil_perm = adonis2(bac_soil ~ TreeSpecies, data=soil_meta, method="robust.aitchison")
+bac_soil_perm
+#R2 = 0.03482, p = 0.028, pseudo-F = 1.2265
+```
+
+#Fungi
+```{r}
+#Cleaning & Reformatting data
+#Read in raw count data
+fun_raw = read.csv("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/PCoAs/Aus23_ITS2_OTU_Table.csv")
+#Transpose to put samples as rows
+fun_raw = as.data.frame(t(fun_raw))
+#Make first row column headers
+names(fun_raw) <- fun_raw[1,]
+fun_raw <- fun_raw[-1,]
+#Make df columns numeric
+fun_raw <- sapply(fun_raw, as.numeric)
+#Fungal root matrix
+fun_root = fun_raw[c(1,2,5,6,9,10,13,14,17,18,21,22,25,26,29,30,33,34,38,39,42,43,46,47,50,51,54,55,58,59,62,63,66,67,70,71),]
+#Fungal soil matrix
+fun_soil = fun_raw[c(3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,35,36,40,41,44,45,48,49,52,53,56,57,60,61,64,65,68,69,72,73),]
+
+#Running PERMANOVA
+#Roots
+fun_root_perm = adonis2(fun_root ~ TreeSpecies, data=root_meta, method="robust.aitchison")
+fun_root_perm
+#R2 = 0.0634, p = 0.001, pseudo-F = 2.3014
+
+#Soil
+fun_soil_perm = adonis2(fun_soil ~ TreeSpecies, data=soil_meta, method="robust.aitchison")
+fun_soil_perm
+#R2 = 0.03502, p = 0.008, pseudo-F = 1.234
+```
+
+#AMF (18S)
+```{r}
+#Cleaning & Reformatting data
+#Read in raw count data
+amf_raw = read.csv("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Documents/GitHub/Aus-Invasions-2023-Course/PCoAs/Aus23_18S_FeatureTable.csv")
+#Transpose to put samples as rows
+amf_raw = as.data.frame(t(amf_raw))
+#Make first row column headers
+names(amf_raw) <- amf_raw[1,]
+amf_raw <- amf_raw[-1,]
+#Make df columns numeric
+amf_raw <- sapply(amf_raw, as.numeric)
+#AMF root matrix
+amf_root = amf_raw[c(1,2,5,6,9,10,13,14,17,18,21,22,25,26,29,30,33,34,37,38,41,42,45,46,49,50,53,54,57,58,61,62,65,66,69,70),]
+#AMF soil matrix
+amf_soil = amf_raw[c(3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,35,36,39,40,43,44,47,48,51,52,55,56,59,60,63,64,67,68,72,72),]
+
+#Running PERMANOVA
+#Roots
+amf_root_perm = adonis2(amf_root ~ TreeSpecies, data=root_meta, method="robust.aitchison")
+amf_root_perm
+#R2 = 0.03206, p = 0.045, pseudo-F = 1.1262
+
+#Soil
+amf_soil_perm = adonis2(amf_soil ~ TreeSpecies, data=soil_meta, method="robust.aitchison")
+amf_soil_perm
+#R2 = 0.0288, p = 0.449, pseudo-F = 1.0082
+```
+
+
+#####BetaDisper#####
+
+
+#Bacteria
+```{r}
+#Roots
+bac_root_dist = vegdist(bac_root, method="robust.aitchison")
+specs = root_meta$TreeSpecies
+#Calculating multivariate dispersions
+bac_root_disper = betadisper(bac_root_dist, specs)
+bac_root_disper
+#Performing test
+anova(bac_root_disper)
+#p = 0.826
+
+#Soil
+bac_soil_dist = vegdist(bac_soil, method="robust.aitchison")
+specs = soil_meta$TreeSpecies
+#Calculating multivariate dispersions
+bac_soil_disper = betadisper(bac_soil_dist, specs)
+bac_soil_disper
+#Performing test
+anova(bac_soil_disper)
+#p = 0.0464, overdispersion of Euc relative to Pine, although PCoA doesn't look that way
+```
+
+#Fungi
+```{r}
+#Roots
+fun_root_dist = vegdist(fun_root, method="robust.aitchison")
+specs = root_meta$TreeSpecies
+#Calculating multivariate dispersions
+fun_root_disper = betadisper(fun_root_dist, specs)
+fun_root_disper
+#Performing test
+anova(fun_root_disper)
+#p = 0.2538
+
+#Soil
+fun_soil_dist = vegdist(fun_soil, method="robust.aitchison")
+specs = soil_meta$TreeSpecies
+#Calculating multivariate dispersions
+fun_soil_disper = betadisper(fun_soil_dist, specs)
+fun_soil_disper
+#Performing test
+anova(fun_soil_disper)
+#p = 0.572
+```
+
+#AMF
+```{r}
+#Roots
+amf_root_dist = vegdist(amf_root, method="robust.aitchison")
+specs = root_meta$TreeSpecies
+#Calculating multivariate dispersions
+amf_root_disper = betadisper(amf_root_dist, specs)
+amf_root_disper
+#Performing test
+anova(amf_root_disper)
+#p = 0.6951
+
+#Soil
+amf_soil_dist = vegdist(amf_soil, method="robust.aitchison")
+specs = soil_meta$TreeSpecies
+#Calculating multivariate dispersions
+amf_soil_disper = betadisper(amf_soil_dist, specs)
+amf_soil_disper
+#Performing test
+anova(amf_soil_disper)
+#p = 0.4309
+```
+
