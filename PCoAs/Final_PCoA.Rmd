@@ -10,7 +10,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#This script was used to generate PCoA plots for the New Phytologist manuscript. The script is split by amplicon following data and library loading.
+#This script was used to generate PCoA plots for the New Phytologist manuscript. The script is split by amplicon following data and library loading. PerMANOVA tests are at bottom of script
 
 #Set WD
 ```{r}
@@ -275,4 +275,3 @@ filt_sample_info %>%
   stat_ellipse() +
   labs(x = "PC1 [6.02%]", y = "PC2 [5.82%]")
 ```
-
