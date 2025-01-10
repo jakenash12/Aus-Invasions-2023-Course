@@ -13,11 +13,13 @@ install.packages("ggpmisc")
 
 
 Aus23_allData_19Nov24 <- read.csv("Aus-Invasions-2023-Course/Merged_data/Aus23_allData_19Nov24.csv") %>% select(-X)
-variables.signif.take2<-c("Bac_Shannon_soil","Path_abund_root", "ergosterol", "Tween_40_BiologDay5", "L.Serine_BiologDay5", 
+variables.signif.take2<-c("Tween_40_BiologDay5", "L.Serine_BiologDay5", 
                           "Glycyl.L.Glutamic_Acid_BiologDay5",
-                          "i.Erythritol_BiologDay5", "Putrescine_BiologDay5", "L.Asparagine_BiologDay5", "soil_moisture",
-                          "pine_litter_prop", "euc_litter_prop", "Euc_leafLitter_percP",           
-                          "Litter_OLayer_ergosterol", "Litter_avg_ergosterol")
+                          "i.Erythritol_BiologDay5", "Putrescine_BiologDay5", "L.Asparagine_BiologDay5", "Bac_Shannon_soil",
+                          "soil_moisture", "ergosterol", 
+                          "Litter_OLayer_ergosterol", "Litter_avg_ergosterol",
+                          "pine_litter_prop", "euc_litter_prop", "Euc_leafLitter_percP")
+
 
 ############################# PLOTS ############################# 
 

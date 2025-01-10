@@ -10,8 +10,11 @@ library(ggplot2)
 fulldat <- read.csv("Aus-Invasions-2023-Course/Merged_data/Aus23_allData_19Nov24.csv", row.names=1)
 
 # read in genus-level pooled OTU tables
-otu.genus.16S <- read.csv("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rare_byGenus_pooled.csv", row.names=1)
-otu.genus.its <- read.csv("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare_byGenus_pooled.csv", row.names=1)
+otu.genus.16S = read_delim("Aus-Invasions-2023-Course/Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rare_byGenus_pooled.csv") %>%
+  column_to_rownames(var = colnames(.)[1])
+otu.genus.its = read_delim("Aus-Invasions-2023-Course/Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare_byGenus_pooled.csv") %>%
+  column_to_rownames(var = colnames(.)[1])
+
 # add tree ID
 otu.genus.16S <- otu.genus.16S %>%
   rownames_to_column("SampleID") %>%
@@ -26,12 +29,9 @@ root.16s <- subset(otu.genus.16S, otu.genus.16S$SampleID %like% "%Root")
 soil.its <- subset(otu.genus.its, otu.genus.its$SampleID %like% "%Soil")
 root.its <- subset(otu.genus.its, otu.genus.its$SampleID %like% "%Root")
 
-colnames(soil.16s)[4] <- "11-24"
-
 # subset out for the genera we want
 bac.root.gen.names <- c("treeName", "Lechevalieria", "Nocardia", "Acidicaldus", "Nevskia", "Occallatibacter", "SBR1031", "Novosphingobium", "Collimonas", "A4b", "Bryocella")
 bac.soil.gen.names <- c("treeName", "Gryllotalpicola", "Limnobacter", "Acidisoma", "Dinghuibacter", "Acidiphilium", "11-24", "SM1A02", "Subgroup_5", "A4b", "Mesorhizobium")
-# "uncultured_24" "11-24", uncultured_40, uncultured_23
 fun.root.gen.names <- c("treeName", "Phialocephala", "Talaromyces", "Devriesia", "Aspergillus", "Penicillium", "Auricularia", "Pezoloma", "Cryptosporiopsis", "Pezicula", "Mollisia")
 fun.soil.gen.names <- c("treeName", "Phialocephala", "Thelephora", "Athelopsis", "Diplodia", "Ascocorticium", "Tomentella", "Leohumicola", "Clavulinopsis", "Pseudocamarosporium", "Flavocillium")
 
@@ -162,7 +162,7 @@ for(i in 1:nrow(bac.soilP_long)){
 bac.soil_long$P_star <- bac.soilP_long$P_star
 
 # make heatmap
-bac.soil.Yorder <- c("Gryllotalpicola", "Limnobacter", "Acidisoma", "Dinghuibacter", "SM1A02", "Subgroup_5", "Bac_Shannon_soil")
+bac.soil.Yorder <- c("Gryllotalpicola", "Limnobacter", "Acidisoma", "Dinghuibacter", "Acidiphilium", "11-24", "SM1A02", "Subgroup_5", "A4b", "Mesorhizobium", "Bac_Shannon_soil")
 ggplot(bac.soil_long, aes(x = factor(Variable, sigvar.order), y = factor(Genus, bac.soil.Yorder), fill = Corr_value)) +
   geom_tile() +
   scale_fill_gradient2(low = "dodgerblue4", mid = "white", high = "green4", midpoint = 0) +
@@ -285,7 +285,7 @@ ggplot(fun.soil_long, aes(x = factor(Variable, sigvar.order), y = factor(Genus, 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   labs(fill = "Correlation") +
   coord_fixed() + 
-  geom_text(aes(label = P_star), size = 7)
+  geom_text(aes(label = P_star), size = 5)
 ggsave("/Users/crvietorisz/Desktop/GitHub/Aus-Invasions-2023-Course/Correlations/Heatmaps/fungal_soil_genus_heatmap.png", width = 6, heigh = 5, dpi = 300)
 
 
