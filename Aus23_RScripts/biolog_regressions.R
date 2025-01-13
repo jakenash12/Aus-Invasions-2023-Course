@@ -45,12 +45,18 @@ summary(lin_mod)
 plot <- ds %>%
   ggplot(aes(y = ergosterol, x = ECM_abund_soil, color = TreeSpecies)) +
   geom_point() +
-  scale_color_manual(values = c("#EAC435", "#345995"))+
-  geom_smooth(aes(group = TreeSpecies), method = "glm", method.args = list(family = "Gamma"),) +
+  scale_color_manual(values = c("#FF9900", "#000DCC")) +
+  theme(axis.text = element_text(colour="black"),
+        axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()
+  )+
+ # geom_smooth(aes(group = TreeSpecies), method = "glm", method.args = list(family = "Gamma"), se= F) +
+  geom_smooth(method = "lm")+
   labs(y = "Ergosterol", x  = "ECM Abundance (soil)")
 
 ggsave("C:/Users/beabo/OneDrive/Documents/NAU/Classes Archived/Australia Co-Invasions Course 2023/Aus-Invasions-2023-Course/Plots/Analyses/ergosterol_vs_ecm_tree.png", plot = plot, dpi = 500, width = 5, heigh = 3, units = "in")
 
+plot
 
 #Do some sort of AIC-based model selection with all predictors
 #Response variables; Total CNP, decomp, 
