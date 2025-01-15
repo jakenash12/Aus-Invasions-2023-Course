@@ -23,6 +23,7 @@ library(tidyverse)
 library(vegan)
 library(dplyr)
 library(readxl)
+library(plyr)
 ```
 
 #Reading in distance matrices & metadata
@@ -51,9 +52,26 @@ Meta = read.csv("/Users/alex/Documents/Documents - Alex’s MacBook Pro/Document
 #Subsetting env variables of interest
 subset = Meta[,c(66,67,69,71,72,73,74,75,76,77,78,85)]
 
+#Renaming variables to make the graphs more legible
+subset = subset %>% 
+  rename(
+    Soil_N = perc_N ,
+    Soil_P = perc_P, 
+    Soil_C = perc_C,
+    Soil_Moisture = soil_moisture,
+    Ergosterol = ergosterol,
+    Soil_OM = organic_matter_LOI,
+    Tree_DBH = dbh_cm,
+    Tree_Height = height_m,
+    Litter_Depth = litter_depth,
+    Pine_Litter_Proportion = pine_litter_prop,
+    Euc_Litter_Proportion =  euc_litter_prop,
+    Litter_Biomass = total_litter_biomass
+    )
+
 #Checking correlations
 library("Hmisc")
-res2 <- rcorr(as.matrix(subset))
+res2 <- rcorr(as.matrix(subset), type = "spearman")
 res2
 #Correlations based on p-values:
 #Soil N -> Soil C, Ergosterol, Soil OM, Tree DBH, Pine Litter Prop
@@ -68,8 +86,11 @@ res2
 
 #Bacterial (16S) dbRDA with env predictors of interest
 ```{r}
+#Moving column of sample names to row names
+Bac2 <- Bac[,-1]
+rownames(Bac2) <- Bac[,1]
 #Formula (7 explanatory variables, may risk being overdetermined given small sample size)
-dbrda_bac = capscale(formula = Bac ~ Soil_N + Soil_P + Soil_Moisture + Tree_DBH + Litter_Depth + Pine_Litter_Proportion + Litter_Biomass, data=Meta, distance = "robust.aitchison", sqrt.dist=TRUE)
+dbrda_bac = capscale(formula = Bac2 ~ Soil_N + Soil_P + Soil_Moisture + Tree_DBH + Litter_Depth + Pine_Litter_Proportion + Litter_Biomass, data=subset, distance = "robust.aitchison", sqrt.dist=TRUE)
 print(dbrda_bac) 
 
 #Including these variables below lead to overfitting
@@ -89,7 +110,7 @@ anova(dbrda_bac)
 
 #Testing axes
 anova(dbrda_bac, by="axis")
-#CAP1, p. = 0.007
+#CAP1, p = 0.007
 
 #Testing environmental variables
 anova(dbrda_bac, by="terms")
@@ -146,14 +167,25 @@ spec_scores = as.data.frame(scores(dbrda_bac)$species)
    geom_text(data=insig, 
              aes(x=CAP1,y=CAP2,label=rownames(insig),
                  hjust=0.5*(1-sign(CAP1)),vjust=0.5*(1-sign(CAP2))), 
-             color="black", size=3.5)
+             color="black", size=4) +
+   xlab("dbRDA1 [7.53%]") +
+   ylab("dbRDA2 [6.64%]") +
+   ggtitle("Bacteria (16S)") +
+   theme(plot.title = element_text(hjust = 0.5, size = 16, face="bold"),
+         axis.text=element_text(size=14),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=15),
+        legend.title=element_text(size=15))
 rda.biplot 
 ```
 
 #Fungal (ITS) dbRDA with env predictors of interest
 ```{r}
+#Moving column of sample names to row names
+Fung2 <- Fung[,-1]
+rownames(Fung2) <- Fung[,1]
 #Formula (7 explanatory variables, may risk being overdetermined given small sample size)
-dbrda_fung = capscale(formula = Fung ~ Soil_N + Soil_P + Soil_Moisture + Tree_DBH + Litter_Depth + Pine_Litter_Proportion + Litter_Biomass, data=Meta, distance = "robust.aitchison", sqrt.dist=TRUE)
+dbrda_fung = capscale(formula = Fung2 ~ Soil_N + Soil_P + Soil_Moisture + Tree_DBH + Litter_Depth + Pine_Litter_Proportion + Litter_Biomass, data=subset, distance = "robust.aitchison", sqrt.dist=TRUE)
 print(dbrda_fung) 
 
 #Including these variables below lead to overfitting
@@ -230,14 +262,25 @@ spec_scores = as.data.frame(scores(dbrda_fung)$species)
    geom_text(data=insig, 
              aes(x=CAP1,y=CAP2,label=rownames(insig),
                  hjust=0.5*(1-sign(CAP1)),vjust=0.5*(1-sign(CAP2))), 
-             color="black", size=3.5)
+             color="black", size=4) +
+   xlab("dbRDA1 [6.74%]") +
+   ylab("dbRDA2 [6.54%]") +
+   ggtitle("Fungi (ITS)") +
+   theme(plot.title = element_text(hjust = 0.5, size = 16, face="bold"),
+         axis.text=element_text(size=14),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=15),
+        legend.title=element_text(size=15))
 rda.biplot 
 ```
 
 #AMF (18S) dbRDA with env predictors of interest
 ```{r}
+#Moving column of sample names to row names
+AMF2 <- AMF[,-1]
+rownames(AMF2) <- AMF[,1]
 #Formula (7 explanatory variables, may risk being overdetermined given small sample size)
-dbrda_amf = capscale(formula = AMF ~ Soil_N + Soil_P + Soil_Moisture + Tree_DBH + Litter_Depth + Pine_Litter_Proportion + Litter_Biomass, data=Meta, distance = "robust.aitchison", sqrt.dist=TRUE)
+dbrda_amf = capscale(formula = AMF2 ~ Soil_N + Soil_P + Soil_Moisture + Tree_DBH + Litter_Depth + Pine_Litter_Proportion + Litter_Biomass, data=subset, distance = "robust.aitchison", sqrt.dist=TRUE)
 print(dbrda_amf) 
 
 #Including these variables below lead to overfitting
@@ -271,7 +314,7 @@ plot(dbrda_amf)
 spec_scores = as.data.frame(scores(dbrda_amf)$species)
 ```
 
-#Plotting amfal dbRDA with subset of env predictors (significant predictors in bold, insig in black)
+#Plotting amf dbRDA with subset of env predictors (significant predictors in bold, insig in black)
 ```{r}
 ### Plot a dbRDA
  smry <- summary(dbrda_amf)
@@ -291,6 +334,8 @@ spec_scores = as.data.frame(scores(dbrda_amf)$species)
 #Subsetting sig. vs. insignificant predictors (Soil N & Tree DBH)
  sig = df2[c(1,4),]
  insig = df2[c(2,3,5,6,7),]
+#Renaming soil moisture because it goes off of plot
+ row.names(insig)[2] = "SM"
  #Plot with no ellipses / hulls etc
  rda.plot <- ggplot(df1, aes(x=CAP1, y=CAP2, color = df1$Species)) + 
    geom_point(size=3) +
@@ -314,8 +359,14 @@ spec_scores = as.data.frame(scores(dbrda_amf)$species)
    geom_text(data=insig, 
              aes(x=CAP1,y=CAP2,label=rownames(insig),
                  hjust=0.5*(1-sign(CAP1)),vjust=0.5*(1-sign(CAP2))), 
-             color="black", size=3.5)
+             color="black", size=4) +
+      xlab("dbRDA1 [7.48%]") +
+   ylab("dbRDA2 [6.67%]") +
+   ggtitle("AMF (18S)") +
+   theme(plot.title = element_text(hjust = 0.5, size = 16, face="bold"),
+         axis.text=element_text(size=14),
+        axis.title=element_text(size=16),
+        legend.text=element_text(size=15),
+        legend.title=element_text(size=15))
 rda.biplot 
 ```
-
-

@@ -13,11 +13,13 @@ install.packages("ggpmisc")
 
 
 Aus23_allData_19Nov24 <- read.csv("Aus-Invasions-2023-Course/Merged_data/Aus23_allData_19Nov24.csv") %>% select(-X)
-variables.signif.take2<-c("Bac_Shannon_soil","Path_abund_root", "ergosterol", "Tween_40_BiologDay5", "L.Serine_BiologDay5", 
+variables.signif.take2<-c("Tween_40_BiologDay5", "L.Serine_BiologDay5", 
                           "Glycyl.L.Glutamic_Acid_BiologDay5",
-                          "i.Erythritol_BiologDay5", "Putrescine_BiologDay5", "L.Asparagine_BiologDay5", "soil_moisture",
-                          "pine_litter_prop", "euc_litter_prop", "Euc_leafLitter_percP",           
-                          "Litter_OLayer_ergosterol", "Litter_avg_ergosterol")
+                          "i.Erythritol_BiologDay5", "Putrescine_BiologDay5", "L.Asparagine_BiologDay5", "Bac_Shannon_soil",
+                          "soil_moisture", "ergosterol", 
+                          "Litter_OLayer_ergosterol", "Litter_avg_ergosterol",
+                          "pine_litter_prop", "euc_litter_prop", "Euc_leafLitter_percP")
+
 
 ############################# PLOTS ############################# 
 
@@ -45,8 +47,8 @@ ggplot(data_long_signif, aes(x = dbh_cm, y = Value, color = factor(TreeSpecies, 
     strip.text = element_text(size = 10, face = "bold"),  # Facet label formatting
     axis.title = element_text(size = 12),
     axis.text = element_text(colour="black"),
-    panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(),
-    axis.line = element_line(colour = "black")
+    axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()
   )
 
 ggsave("Aus-Invasions-2023-Course/DBH_regressions/Regression_Plots_DBH_vs_Signif_Variables_Faceted_Stats_v2.png", width = 14, height = 8, dpi = 300)
