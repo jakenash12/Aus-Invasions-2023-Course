@@ -56,6 +56,20 @@ TaxMat16S_SILVA=
   mutate(across(!contains("otu"), ~extract_text(.))) %>%
   mutate(across(everything(), ~ifelse(grepl("uncultured", ., fixed = TRUE), NA, .))) %>%
   mutate(across(everything(), ~ifelse(grepl("Unknown", ., fixed = TRUE), NA, .)))
+
+OtuMat18S_rare_pooled=
+  read_delim("../Aus23_18S_Metabarcoding/OTUTables/OtuMat18S_rare_pooled.csv", delim=",") %>%
+  column_to_rownames(var = colnames(.)[1])
+
+TaxMat18S=
+  read_tsv("../Aus23_18S_Metabarcoding/AMF_Taxonomy.tsv") %>% 
+  slice(-1) %>%
+  rename("otu"="Feature ID") %>%
+  select(-Consensus) %>%
+  separate_wider_delim(too_few="align_start", cols = Taxon, delim = ";", names = c("Kingdom", "Phylum","Class", "Order","Family","Genus","Species")) %>%
+  mutate(across(!contains("otu"), ~extract_text(.))) %>%
+  mutate(across(everything(), ~ifelse(grepl("Unassigned", ., fixed = TRUE), NA, .))) %>%
+  mutate(across(everything(), ~ifelse(grepl("Unknown", ., fixed = TRUE), NA, .)))
 ```
 
 ## LINDA test for ITS samples
@@ -190,6 +204,33 @@ Phyloseq_pooled_16S <- phyloseq(OTU_16S_pooled_phyloseq, TAX_16S_pooled_phyloseq
 #subset phyloseq object into root and soil samples
 Phyloseq_pooled_16S_root=subset_samples(Phyloseq_pooled_16S, SampleType=="Root")
 Phyloseq_pooled_16S_soil=subset_samples(Phyloseq_pooled_16S, SampleType=="Soil")
+
+#####18S
+OTU_18S_pooled_phyloseq=
+  OtuMat18S_rare_pooled %>%
+  as.matrix %>%
+  otu_table(taxa_are_rows = FALSE)
+
+TAX_18S_pooled_phyloseq=
+  TaxMat18S %>%
+  filter(otu %in% colnames(OtuMat18S_rare_pooled)) %>%
+  column_to_rownames("otu") %>%
+  mutate(across(everything(), ~ ifelse(grepl("incertae|_sp$", ., ignore.case = TRUE), NA, .))) %>% # changes any tax values with incerta or _sp to NA
+    mutate(Species = gsub("_", ".", Species)) %>%
+  as.matrix %>%
+  tax_table
+
+SAMPLES_18S_pooled_phyloseq=
+  Metadata_ITS_LINDA_pooled %>% 
+  filter(TreeSampleType %in% rownames(OtuMat18S_rare_pooled)) %>%
+  column_to_rownames("TreeSampleType") %>% 
+  sample_data()
+
+Phyloseq_pooled_18S <- phyloseq(OTU_18S_pooled_phyloseq, TAX_18S_pooled_phyloseq, SAMPLES_18S_pooled_phyloseq)
+
+#subset phyloseq object into root and soil samples
+Phyloseq_pooled_18S_root=subset_samples(Phyloseq_pooled_18S, SampleType=="Root")
+Phyloseq_pooled_18S_soil=subset_samples(Phyloseq_pooled_18S, SampleType=="Soil")
 ```
 
 
@@ -233,7 +274,11 @@ ANCOM_ITS_root_plot=
   theme_test() +
   ylab("Log2FoldChange") +
   ggtitle("Fungi different in roots") +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_manual(values = c("#FF9900", "#000DCC")) +
+  theme(axis.text = element_text(colour="black"),
+        axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank())
 ```
 
 ## ITS soil ANCOMBC-2 test - Genus Level
@@ -276,7 +321,12 @@ ANCOM_ITS_soil_plot=
   theme_test() +
   ylab("Log2FoldChange") +
   ggtitle("Fungi different in soil") +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_manual(values = c("#FF9900", "#000DCC")) +
+  theme(axis.text = element_text(colour="black"),
+        axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()
+  )
 ```
 
 ## 16S root ANCOMBC-2 test - Genus Level
@@ -319,7 +369,11 @@ ANCOM_16S_root_plot=
   theme_test() +
   ylab("Log2FoldChange") +
   ggtitle("Bacteria different in roots") +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_manual(values = c("#FF9900", "#000DCC")) +
+  theme(axis.text = element_text(colour="black"),
+        axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank())
 ```
 
 ## 16S soil ANCOMBC-2 test
@@ -362,6 +416,96 @@ ANCOM_16S_soil_plot=
   theme_test() +
   ylab("Log2FoldChange") +
   ggtitle("Bacteria different in soil") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_manual(values = c("#FF9900", "#000DCC")) +
+  theme(axis.text = element_text(colour="black"),
+        axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank())
+```
+
+## 18S root ANCOMBC-2 test - Genus Level
+```{r, warning=FALSE, message=FALSE}
+ANCOM_18S_pooled_root = ancombc2(data =subset_taxa(Phyloseq_pooled_18S_root, !is.na(Genus) & Genus != ""),
+                  fix_formula = "TreeSpecies",
+                  tax_level="Genus",
+                  p_adj_method = "fdr", pseudo_sens = TRUE,
+                  prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+                  group = "TreeSpecies", struc_zero = FALSE, neg_lb = FALSE,
+                  alpha = 0.05, n_cl = 2, verbose = TRUE,
+                  global = TRUE, pairwise = FALSE, 
+                  dunnet = FALSE, trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, 
+                                      verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = lme4::lmerControl(), 
+                  mdfdr_control = list(fwer_ctrl_method = "fdr", B = 100), 
+                  trend_control = NULL)
+
+ANCOM_18S_pooled_root_df=
+  ANCOM_18S_pooled_root$res %>%
+  as.data.frame %>% 
+  rename("otu"="taxon")
+
+
+ANCOM_18S_pooled_root_df_plot=
+  ANCOM_18S_pooled_root_df %>%
+    filter(p_TreeSpeciesPine<0.05) %>%  
+    mutate(HostID=case_when(lfc_TreeSpeciesPine<0 ~ "Eucalyptus",
+                            lfc_TreeSpeciesPine>0 ~ "Pine",
+                            .default=NA),
+           otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
+
+ANCOM_18S_root_plot=
+  ggplot(ANCOM_18S_pooled_root_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+  geom_bar(stat="identity", aes(fill=HostID)) +
+  geom_hline(yintercept=0, color="black") +
+  coord_flip() +
+  theme_test() +
+  ylab("Log2FoldChange") +
+  ggtitle("AMF different in roots") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## 18S soil ANCOMBC-2 test
+```{r, warning=FALSE, message=FALSE}
+ANCOM_18S_pooled_soil = ancombc2(data =subset_taxa(Phyloseq_pooled_18S_soil, !is.na(Genus) & Genus != ""),
+                  fix_formula = "TreeSpecies",
+                  tax_level="Genus",
+                  p_adj_method = "fdr", pseudo_sens = TRUE,
+                  prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+                  group = "TreeSpecies", struc_zero = FALSE, neg_lb = FALSE,
+                  alpha = 0.05, n_cl = 2, verbose = TRUE,
+                  global = TRUE, pairwise = FALSE, 
+                  dunnet = FALSE, trend = FALSE,
+                  iter_control = list(tol = 1e-5, max_iter = 20, 
+                                      verbose = FALSE),
+                  em_control = list(tol = 1e-5, max_iter = 100),
+                  lme_control = lme4::lmerControl(), 
+                  mdfdr_control = list(fwer_ctrl_method = "fdr", B = 100), 
+                  trend_control = NULL)
+
+ANCOM_18S_pooled_soil_df=
+  ANCOM_18S_pooled_soil$res %>%
+  as.data.frame %>% 
+  rename("otu"="taxon")
+
+
+ANCOM_18S_pooled_soil_df_plot=
+  ANCOM_18S_pooled_soil_df %>%
+    filter(p_TreeSpeciesPine<0.05) %>%  
+    mutate(HostID=case_when(lfc_TreeSpeciesPine<0 ~ "Eucalyptus",
+                            lfc_TreeSpeciesPine>0 ~ "Pine",
+                            .default=NA),
+           otu = factor(otu, levels = otu[order(lfc_TreeSpeciesPine)])) 
+
+ANCOM_18S_soil_plot=
+  ggplot(ANCOM_18S_pooled_soil_df_plot, aes(x=otu, y=lfc_TreeSpeciesPine)) +
+  geom_bar(stat="identity", aes(fill=HostID)) +
+  geom_hline(yintercept=0, color="black") +
+  coord_flip() +
+  theme_test() +
+  ylab("Log2FoldChange") +
+  ggtitle("AMF different in soil") +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
@@ -384,16 +528,16 @@ ANCOM_sig_OTUs_16S=
 ```{r, warning=FALSE, message=FALSE}
 
 ANCOM_ITS_root_plot
-ggsave("../ANCOMBC-2/ANCOM_ITS_root_plot.png", width=6, height=4)
+ggsave("../ExportedFigures/ANCOM_ITS_root_plot.png", width=6, height=4)
 
 ANCOM_ITS_soil_plot
-ggsave("../ANCOMBC-2/ANCOM_ITS_soil_plot.png", width=6, height=4)
+ggsave("../ExportedFigures/ANCOM_ITS_soil_plot.png", width=6, height=4)
 
 ANCOM_16S_root_plot
-ggsave("../ANCOMBC-2/ANCOM_16S_root_plot.png", width=6, height=10)
+ggsave("../ExportedFigures/ANCOM_16S_root_plot.png", width=6, height=10)
 
 ANCOM_16S_soil_plot
-ggsave("../ANCOMBC-2/ANCOM_16S_soil_plot.png", width=6, height=10)
+ggsave("../ExportedFigures/ANCOM_16S_soil_plot.png", width=6, height=10)
 
 write.csv(ANCOM_sig_OTUs_ITS, "../ANCOMBC-2/ANCOM_sig_OTUs_ITS.csv", row.names = FALSE)
 write.csv(ANCOM_sig_OTUs_16S, "../ANCOMBC-2/ANCOM_sig_OTUs_16S.csv", row.names = FALSE)

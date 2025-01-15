@@ -6,6 +6,14 @@ library(readxl)
 ITS2_Curated_NativeIntroduced=
   read_xlsx("../Aus23_ITS_Metabarcoding/ITS2_Curated_NativeIntroduced.xlsx")
 
+#generates more curated list of fungi of interest
+SelectFungi=c("Suillus_quiescens", "Suillus_luteus",
+              "Rhizopogon_pseudoroseolus", "Rhizopogon_verii",
+              "Rhizopogon_evadens", "Lactarius_deliciosus",
+              "Amanita_muscaria", "Thelephora_terrestris",
+              "Phialocephela_sp", 
+              )
+
 OtuMatITS_pooled_rel_curated=
   OtuMatITS_pooled_rel %>%
   select(ITS2_Curated_NativeIntroduced$`Feature ID`) %>%
@@ -13,59 +21,93 @@ OtuMatITS_pooled_rel_curated=
   gather("otu","Abundance",-TreeSampleType) %>%
   left_join(Metadata_ITS_pooled) %>%
   filter(SampleType!="Neg") %>%
-  left_join(ITS2_Curated_NativeIntroduced, by=c("otu"="Feature ID"))
+  left_join(ITS2_Curated_NativeIntroduced, by=c("otu"="Feature ID")) %>%
+  mutate(Species = gsub("_", " ", Species)) %>%
+  mutate(Species = gsub(" sp", " sp.", Species))
 
-Introduced_plot=
+Introduced_plot =
   OtuMatITS_pooled_rel_curated %>%
-  filter(Provenance=="Introduced") %>%
+  filter(Provenance == "Introduced") %>%
   mutate(otu = factor(otu, levels = unique(c(
     otu[Genus == "Suillus"], 
     otu[Genus == "Rhizopogon"], 
-    otu[!Genus %in% c("Suillus", "Rhizopogon")]
+    otu[Genus == "Phialocephala"],
+    otu[!Genus %in% c("Suillus", "Rhizopogon", "Phialocephala")]
   )))) %>%
-  ggplot(aes(x=SampleType,
-             y=Abundance,
-             color=TreeSpecies)) +
+  ggplot(aes(x = SampleType,
+             y = Abundance,
+             color = TreeSpecies)) +
   geom_boxplot(
-    position = position_dodge(width = 0.75),
+    position = position_dodge(width = 0.8), # Increased width for more spacing
     outlier.shape = NA
-  ) + # Align boxplots properly for grouped categories
+  ) +
   geom_jitter(
-    position = position_dodge(width = 0.75),
-    size = 3,
+    position = position_jitterdodge(
+      jitter.width = 0.2, # Jittering amount on x-axis
+      dodge.width = 0.8   # Dodge width to align with boxplots
+    ),
+    size = 2.5,
     alpha = 0.6
   ) +
-  facet_wrap(.~otu, scales = "free_y", labeller = labeller(otu = function(otu_levels) {
-    OtuMatITS_pooled_rel_curated$Species[match(otu_levels, OtuMatITS_pooled_rel_curated$otu)]
-  })) +
+  facet_wrap(
+    . ~ otu, 
+    scales = "free_y", 
+    labeller = labeller(otu = function(otu_levels) {
+      OtuMatITS_pooled_rel_curated$Species[match(otu_levels, OtuMatITS_pooled_rel_curated$otu)]
+    }),
+    strip.position = "top"
+  ) +
   scale_color_manual(values = c("#FF9900", "#000DCC")) +
-  theme(axis.text = element_text(colour="black"),
-        axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()) +
+  theme_test() +
+  theme(
+    axis.text = element_text(colour = "black"),
+    axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(), 
+    panel.background = element_blank(),
+    strip.text = element_text(margin = margin(b = 5, t = 5)) # Adds padding to facet strip
+  ) +
   ggtitle("Introduced Fungi") +
   theme(plot.title = element_text(hjust = 0.5))
 
-Native_plot=
-  ggplot(filter(OtuMatITS_pooled_rel_curated, Provenance=="Native"), 
-         aes(x=SampleType,
-             y=Abundance,
-             color=TreeSpecies)) +
+Native_plot =
+  ggplot(
+    filter(OtuMatITS_pooled_rel_curated, Provenance == "Native"), 
+    aes(x = SampleType,
+        y = Abundance,
+        color = TreeSpecies)
+  ) +
   geom_boxplot(
-    position = position_dodge(width = 0.75),
+    position = position_dodge(width = 0.8), # Increased width for more spacing
     outlier.shape = NA
-  ) + # Align boxplots properly for grouped categories
+  ) +
   geom_jitter(
-    position = position_dodge(width = 0.75),
-    size = 3,
+    position = position_jitterdodge(
+      jitter.width = 0.2, # Jittering amount on x-axis
+      dodge.width = 0.8   # Dodge width to align with boxplots
+    ),
+    size = 2.5,
     alpha = 0.6
   ) +
-  facet_wrap(.~otu, scales = "free_y", labeller = labeller(otu = function(otu_levels) {
-    OtuMatITS_pooled_rel_curated$Species[match(otu_levels, OtuMatITS_pooled_rel_curated$otu)]
-  })) +
+  facet_wrap(
+    . ~ otu, 
+    scales = "free_y", 
+    labeller = labeller(otu = function(otu_levels) {
+      OtuMatITS_pooled_rel_curated$Species[match(otu_levels, OtuMatITS_pooled_rel_curated$otu)]
+    }),
+    strip.position = "top"
+  ) +
   scale_color_manual(values = c("#FF9900", "#000DCC")) +
-  theme(axis.text = element_text(colour="black"),
-        axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()) +
+  theme_test() +
+  theme(
+    axis.text = element_text(colour = "black"),
+    axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(), 
+    panel.background = element_blank(),
+    strip.text = element_text(margin = margin(b = 5, t = 5)) # Adds padding to facet strip
+  ) +
   ggtitle("Native Australian Fungi") +
   theme(plot.title = element_text(hjust = 0.5))
+
 
