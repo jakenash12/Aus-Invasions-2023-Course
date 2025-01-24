@@ -44,6 +44,8 @@ lm.pvals <- do.call(rbind, lm.results)
 lm.pvals <- as.data.frame(lm.pvals)
 lm.pvals$variable <- variables
 
+write.csv(lm.pvals, "DBH_regressions/all_variable_interaction_models_stats.csv")
+
 # pull out all variables where dbh or the interaction are significant
 lm.signif <- subset(lm.pvals, dbh_p < 0.05 | int_p < 0.05)
 
