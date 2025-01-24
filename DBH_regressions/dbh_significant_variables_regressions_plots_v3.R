@@ -8,6 +8,7 @@ library(ggplot2)
 library(tidyr)
 library(ggpmisc)
 library(car)
+library(lmerTest)
 
 setwd("Aus-Invasions-2023-Course/")
 
@@ -22,10 +23,16 @@ vars <- fulldat[c(4:77,80:84,150:206)]
 run_regressions <- function(variable_name, data) {
   formula <- as.formula(paste(variable_name, "~ dbh_cm*TreeSpecies"))
   mod <- lm(formula, data = data)
+  mod.summ <- summary(mod)
+  mod.R2 <- mod.summ$r.squared
   mod.anova <- car::Anova(mod, test.statistic = "F")
   c(dbh_p = mod.anova[1,4],
     tree_p = mod.anova[2,4],
-    int_p = mod.anova[3,4])
+    int_p = mod.anova[3,4],
+    dbh_f = mod.anova[1,3],
+    tree_f = mod.anova[2,3],
+    int_f = mod.anova[3,3],
+    R2 = mod.R2)
 }
 
 # apply this function to all variables
@@ -47,7 +54,8 @@ select.vars <- c("dbh_cm", "TreeSpecies", "Bac_Shannon_soil", "ECM_richness_soil
 select.dat <- fulldat[select.vars]
 
 ####### Check linear model assumptions ##########
-mod <- lm(Bac_Shannon_soil ~ dbh_cm*TreeSpecies, data = fulldat) # change response variable to what you want to look at
+mod <- lm(pine_litter_prop ~ dbh_cm*TreeSpecies, data = fulldat) # change response variable to what you want to look at
+summary(mod)
 anova(mod)
 plot(mod) # plots of residuals and qqnorm 
 
