@@ -174,6 +174,31 @@ qiime metadata tabulate \
 --m-input-file maarjam-80/classification.qza \
 --o-visualization maarjam-80/classification.qzv
 
+# Filtering out remaining unassigned sequences into a new file for classification with NCBI
+qiime taxa filter-seqs \
+--i-sequences maarjam-90/unassigned-rep-seqs-90.qza \
+--i-taxonomy maarjam-80/maarj80_classification.qza \
+--p-include Unassigned \
+--o-filtered-sequences maarjam-80/unassigned-rep-seqs-80.qza
+
+# Blasting remaining unclassified seqs at 80% against NCBI database
+qiime feature-classifier classify-consensus-blast \
+--i-query maarjam-80/unassigned-rep-seqs-80.qza \
+--i-reference-reads ncbi-glom-refseqs-unfiltered.qza \
+--i-reference-taxonomy ncbi-glom-taxonomy-unfiltered.qza \
+--p-maxaccepts 1 \
+--p-perc-identity 0.80 \
+--p-query-cov 0.90 \
+--p-strand both \
+--p-evalue 1e-50 \
+--p-min-consensus 0.51 \
+--output-dir maarjam-ncbi-80
+
+# Visualizing new classifications
+qiime metadata tabulate \
+--m-input-file maarjam-ncbi-80/classification.qza \
+--o-visualization maarjam-ncbi-80/classification.qzv
+
 #### Filtering out non-AMF taxa from our tables
 # 95% table
 qiime taxa filter-table \
@@ -210,7 +235,7 @@ qiime taxa filter-table \
 --p-include Glomeromycetes,Paraglomeromycetes \
 --o-filtered-table maarjam-80/glom-only-maarjam-table-80.qza
 
-# Making individual feature tables from AMF only
+# Making individual taxa barplots from AMF only
 qiime taxa barplot \
 --i-table maarjam-95/glom-only-maarjam-table-95.qza \
 --i-taxonomy maarjam-95/maarj95_classification.qza \
@@ -254,6 +279,7 @@ qiime feature-table tabulate-seqs \
 --i-data glom-only-final-rep-seqs.qza \
 --o-visualization glom-only-final-rep-seqs.qzv
 
+
 # Make phylogenetic tree
 #!/bin/bash
 #SBATCH --job-name=phylogeny
@@ -282,12 +308,233 @@ qiime feature-table merge-taxa \
 --i-data maarjam-95/maarj95_classification.qza \
 --o-merged-data merged-classification.qza
 
-# Visualize final classification
+# Visualize final taxonomic classification
 qiime metadata tabulate \
 --m-input-file merged-classification.qza \
 --o-visualization merged-classification.qzv
 
-# Export rep seqs (Need to do)
+# Making full taxa barplot
+qiime taxa barplot \
+--i-table glom-only-final-table.qza \
+--i-taxonomy merged-classification.qza \
+--m-metadata-file MetabarcodingMetadata.txt \
+--o-visualization glom-only-taxa-barplot-all.qzv
+
+# Exporting feature table
 qiime tools export \
---input-path koa-ohia-haka-merged-rep-seqs.qza \
---output-path phyloseq
+  --input-path glom-only-final-table.qza \
+  --output-path exported-feature-table-glom-only
+
+biom convert -i feature-table.biom -o feature-table-glom-only.tsv --to-tsv
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### NCBI ####
+# Starting pipeline over with NCBI data to maximize assignments #
+qiime rescript get-ncbi-data \
+ --p-query '18S[ALL] AND glomeromycotina [ORGN]' \
+ --o-sequences ncbi-glom-refseqs-unfiltered.qza \
+ --o-taxonomy ncbi-glom-taxonomy-unfiltered.qza \
+ --p-n-jobs 5
+
+# Trying feature classifier on all sequences at 95%
+qiime feature-classifier classify-consensus-blast \
+--i-query Aus_18S_demux.vxtractor.dada2-rep-seqs.qza \
+--i-reference-reads ncbi-glom-refseqs-unfiltered.qza \
+--i-reference-taxonomy ncbi-glom-taxonomy-unfiltered.qza \
+--p-maxaccepts 1 \
+--p-perc-identity 0.95 \
+--p-query-cov 0.90 \
+--p-strand both \
+--p-evalue 1e-50 \
+--p-min-consensus 0.51 \
+--output-dir ncbi-95
+
+##### Starting job on evening of 01/13/2025 ######
+
+#!/bin/bash
+#SBATCH --job-name=fulljob.sh
+#SBATCH --nodes=1
+#SBATCH --ntasks=40
+#SBATCH --partition=amilan
+#SBATCH --time=24:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jasigs@colostate.edu
+
+module purge
+module load anaconda
+conda activate qiime2-amplicon-2024.5
+
+# Visualizing classified sequences
+qiime metadata tabulate \
+--m-input-file ncbi-95/classification.qza \
+--o-visualization ncbi-95/classification.qzv
+
+# Pulling unassigned sequences to reassign at 90%
+qiime taxa filter-seqs \
+--i-sequences Aus_18S_demux.vxtractor.dada2-rep-seqs.qza \
+--i-taxonomy ncbi-95/classification.qza \
+--p-include Unassigned \
+--o-filtered-sequences ncbi-95/unassigned-rep-seqs-95.qza
+
+# Reassigning unclassified seqs at 90%
+qiime feature-classifier classify-consensus-blast \
+--i-query ncbi-95/unassigned-rep-seqs-95.qza \
+--i-reference-reads ncbi-glom-refseqs-unfiltered.qza \
+--i-reference-taxonomy ncbi-glom-taxonomy-unfiltered.qza \
+--p-maxaccepts 1 \
+--p-perc-identity 0.90 \
+--p-query-cov 0.90 \
+--p-strand both \
+--p-evalue 1e-50 \
+--p-min-consensus 0.51 \
+--output-dir ncbi-90
+
+# Visualizing classified sequences
+qiime metadata tabulate \
+--m-input-file ncbi-90/classification.qza \
+--o-visualization ncbi-90/classification.qzv
+
+# Pulling unassigned sequences to reassign at 80%
+qiime taxa filter-seqs \
+--i-sequences ncbi-95/unassigned-rep-seqs-95.qza \
+--i-taxonomy ncbi-90/classification.qza \
+--p-include Unassigned \
+--o-filtered-sequences ncbi-90/unassigned-rep-seqs-90.qza
+
+# Reassigning unclassified seqs at 80%
+qiime feature-classifier classify-consensus-blast \
+--i-query ncbi-90/unassigned-rep-seqs-90.qza \
+--i-reference-reads ncbi-glom-refseqs-unfiltered.qza \
+--i-reference-taxonomy ncbi-glom-taxonomy-unfiltered.qza \
+--p-maxaccepts 1 \
+--p-perc-identity 0.80 \
+--p-query-cov 0.90 \
+--p-strand both \
+--p-evalue 1e-50 \
+--p-min-consensus 0.51 \
+--output-dir ncbi-80
+
+# Visualizing classified sequences
+qiime metadata tabulate \
+--m-input-file ncbi-80/classification.qza \
+--o-visualization ncbi-80/classification.qzv
+
+########### Job ends here ############
+
+#### Filtering out non-AMF taxa from our tables
+# 95% table
+qiime taxa filter-table \
+--i-table Aus_18S_demux.vxtractor.table.qza \
+--i-taxonomy ncbi-95/classification.qza \
+--p-include Glomeromycetes,Glomeromycotina \
+--o-filtered-table ncbi-95/glom-only-ncbi-table-95.qza
+
+# Filtering the unassigned sequences from 95% table
+qiime taxa filter-table \
+--i-table Aus_18S_demux.vxtractor.table.qza \
+--i-taxonomy ncbi-95/classification.qza \
+--p-include Unassigned \
+--o-filtered-table ncbi-95/unassigned-table-95.qza
+
+# Filtering 90% table
+qiime taxa filter-table \
+--i-table ncbi-95/unassigned-table-95.qza \
+--i-taxonomy ncbi-90/classification.qza \
+--p-include Glomeromycetes,Glomeromycotina \
+--o-filtered-table ncbi-90/glom-only-ncbi-table-90.qza
+
+# Filtering unassigned sequences from 95% table
+qiime taxa filter-table \
+--i-table ncbi-95/unassigned-table-95.qza \
+--i-taxonomy ncbi-90/classification.qza \
+--p-include Unassigned \
+--o-filtered-table ncbi-90/unassigned-table-90.qza
+
+# Filter 80% table
+qiime taxa filter-table \
+--i-table ncbi-90/unassigned-table-90.qza \
+--i-taxonomy ncbi-80/classification.qza \
+--p-include Glomeromycetes,Glomeromycotina \
+--o-filtered-table ncbi-80/glom-only-ncbi-table-80.qza
+
+# Making individual taxa barplots from AMF only
+qiime taxa barplot \
+--i-table ncbi-95/glom-only-ncbi-table-95.qza \
+--i-taxonomy ncbi-95/classification.qza \
+--m-metadata-file MetabarcodingMetadata.txt \
+--o-visualization ncbi-95/glom-only-taxa-barplot-95.qzv
+
+qiime taxa barplot \
+--i-table ncbi-90/glom-only-ncbi-table-90.qza \
+--i-taxonomy ncbi-90/classification.qza \
+--m-metadata-file MetabarcodingMetadata.txt \
+--o-visualization ncbi-90/glom-only-taxa-barplot-90.qzv
+
+qiime taxa barplot \
+--i-table ncbi-80/glom-only-ncbi-table-80.qza \
+--i-taxonomy ncbi-80/classification.qza \
+--m-metadata-file MetabarcodingMetadata.txt \
+--o-visualization ncbi-80/glom-only-taxa-barplot-80.qzv
+
+# Merging the 3 feature tables
+qiime feature-table merge \
+--i-tables ncbi-95/glom-only-ncbi-table-95.qza \
+--i-tables ncbi-90/glom-only-ncbi-table-90.qza \
+--i-tables ncbi-80/glom-only-ncbi-table-80.qza \
+--o-merged-table glom-only-final-table-ncbi.qza \
+--p-overlap-method sum
+
+# Visualize feature table
+qiime feature-table summarize \
+--i-table glom-only-final-table-ncbi.qza \
+--o-visualization glom-only-final-table-ncbi.qzv \
+--m-sample-metadata-file MetabarcodingMetadata.txt
+
+# Filtering out rep seqs
+qiime feature-table filter-seqs \
+--i-data Aus_18S_demux.vxtractor.dada2-rep-seqs.qza \
+--i-table glom-only-final-table-ncbi.qza \
+--o-filtered-data glom-only-final-rep-seqs-ncbi.qza
+
+# Visualize rep seqs
+qiime feature-table tabulate-seqs \
+--i-data glom-only-final-rep-seqs-ncbi.qza \
+--o-visualization glom-only-final-rep-seqs-ncbi.qzv
+
+# Merging all classification files (Order matters)
+qiime feature-table merge-taxa \
+--i-data ncbi-80/classification.qza \
+--i-data ncbi-90/classification.qza \
+--i-data ncbi-95/classification.qza \
+--o-merged-data merged-ncbi-classification.qza
+
+# Visualize final taxonomic classification
+qiime metadata tabulate \
+--m-input-file merged-ncbi-classification.qza \
+--o-visualization merged-ncbi-classification.qzv
+
+# Making full taxa barplot
+qiime taxa barplot \
+--i-table glom-only-final-table-ncbi.qza \
+--i-taxonomy merged-ncbi-classification.qza \
+--m-metadata-file MetabarcodingMetadata.txt \
+--o-visualization glom-only-taxa-barplot-all-ncbi.qzv
+
+# Exporting feature table
+qiime tools export \
+  --input-path glom-only-final-table-ncbi.qza \
+  --output-path exported-feature-table-glom-only-ncbi
+
+biom convert -i feature-table.biom -o feature-table-glom-only.tsv --to-tsv
