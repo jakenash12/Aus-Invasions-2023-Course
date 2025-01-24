@@ -55,7 +55,8 @@ TaxMat16S_SILVA=
   separate_wider_delim(too_few="align_start", cols = Taxon, delim = ";", names = c("Kingdom", "Phylum","Class", "Order","Family","Genus","Species", "SH")) %>%
   mutate(across(!contains("otu"), ~extract_text(.))) %>%
   mutate(across(everything(), ~ifelse(grepl("uncultured", ., fixed = TRUE), NA, .))) %>%
-  mutate(across(everything(), ~ifelse(grepl("Unknown", ., fixed = TRUE), NA, .)))
+  mutate(across(everything(), ~ifelse(grepl("Unknown", ., fixed = TRUE), NA, .))) %>%
+  mutate(Genus = ifelse(Genus == "Subgroup_10", "Thermoanaerobaculaceae_Subgroup_10", Genus)) %>%
 
 OtuMat18S_rare_pooled=
   read_delim("../Aus23_18S_Metabarcoding/OTUTables/OtuMat18S_rare_pooled.csv", delim=",") %>%
@@ -278,7 +279,49 @@ ANCOM_ITS_root_plot=
   scale_fill_manual(values = c("#FF9900", "#000DCC")) +
   theme(axis.text = element_text(colour="black"),
         axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank())
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()) +
+  theme(axis.text.y = element_text(size = 12))
+```
+
+## Plotting all ANCOM results as single figure
+```{r, warning=FALSE, message=FALSE}
+ANCOM_full_results <- 
+  rbind(
+    mutate(ANCOM_16S_pooled_soil_df_plot,
+           SampleType = "Soil", Dataset = "Bacteria"),
+    mutate(ANCOM_16S_pooled_root_df_plot,
+           SampleType = "Root", Dataset = "Bacteria"),
+    mutate(ANCOM_ITS_pooled_soil_df_plot,
+           SampleType = "Soil", Dataset = "Fungi"),
+    mutate(ANCOM_ITS_pooled_root_df_plot,
+           SampleType = "Root", Dataset = "Fungi")
+  ) %>%
+  mutate(Genus_edit = paste(otu, Dataset, SampleType, sep = "_")) %>%
+  arrange(Dataset, (lfc_TreeSpeciesPine)) %>%
+  mutate(
+    Dataset = factor(Dataset, levels = c("Fungi", "Bacteria")), # Order Dataset
+    Genus_edit = factor(Genus_edit, levels = unique(Genus_edit))  # Reorder Genus_edit
+  )
+
+ANCOM_barplot_full=
+  ggplot(ANCOM_full_results, aes(x=Genus_edit, y=lfc_TreeSpeciesPine)) +
+  geom_bar(stat="identity", aes(fill=HostID)) +
+  geom_hline(yintercept=0, color="black") +
+  coord_flip() +
+  theme_test() +
+  ylab("Log2FoldChange") +
+  ggtitle("ANCOM-BC2") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_manual(values = c("#FF9900", "#000DCC")) +
+  theme(axis.text = element_text(colour="black"),
+        axis.line = element_line(colour = "black"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()) +
+  theme(axis.text.y = element_text(size = 12)) +
+  facet_wrap(.~SampleType, scales="free_y") +
+  scale_x_discrete(labels = function(x) {
+    otu_labels <- ANCOM_full_results$otu[match(x, ANCOM_full_results$Genus_edit)]
+    return(otu_labels)
+  })
 ```
 
 ## ITS soil ANCOMBC-2 test - Genus Level
@@ -326,7 +369,8 @@ ANCOM_ITS_soil_plot=
   theme(axis.text = element_text(colour="black"),
         axis.line = element_line(colour = "black"),
         panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()
-  )
+  ) +
+  theme(axis.text.y = element_text(size = 12))
 ```
 
 ## 16S root ANCOMBC-2 test - Genus Level
@@ -373,7 +417,8 @@ ANCOM_16S_root_plot=
   scale_fill_manual(values = c("#FF9900", "#000DCC")) +
   theme(axis.text = element_text(colour="black"),
         axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank())
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()) +
+  theme(axis.text.y = element_text(size = 12))
 ```
 
 ## 16S soil ANCOMBC-2 test
@@ -420,7 +465,8 @@ ANCOM_16S_soil_plot=
   scale_fill_manual(values = c("#FF9900", "#000DCC")) +
   theme(axis.text = element_text(colour="black"),
         axis.line = element_line(colour = "black"),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank())
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()) +
+  theme(axis.text.y = element_text(size = 12))
 ```
 
 ## 18S root ANCOMBC-2 test - Genus Level
@@ -526,6 +572,15 @@ ANCOM_sig_OTUs_16S=
 
 ## Saves lists of differentially abundant fungi/bacteria and graphs
 ```{r, warning=FALSE, message=FALSE}
+
+ggsave(
+  filename ="../ExportedFigures/ANCOM_barplot_full.pdf",
+  plot = ANCOM_barplot_full,
+  device = "pdf",
+  width = 12,
+  height = 9,
+  units = "in"
+)
 
 ANCOM_ITS_root_plot
 ggsave("../ExportedFigures/ANCOM_ITS_root_plot.png", width=6, height=4)

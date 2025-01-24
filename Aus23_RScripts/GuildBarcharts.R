@@ -1,4 +1,5 @@
 library(tidyverse)
+library(readxl)
 
 OtuMatITS_rare_pooled=
   read_delim("../Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare_pooled.csv", delim=",") %>%
@@ -26,13 +27,10 @@ TaxITS_funguild_edit=
   select(otu, primary_lifestyle) %>%
   left_join(TaxMatITS) %>%
   mutate(guild_edit=case_when(
-    Genus %in% DSE_List$Taxon ~ "Dark Septate Endophyte",
-    Family %in% DSE_List$Taxon ~ "Dark Septate Endophyte",
-    otu %in% DSE_otus ~ "Dark Septate Endophyte",
+    Genus=="Phialocephala"   ~ "Phialocephala",
     Genus=="Suillus" ~ "Suillus",
     Genus=="Rhizopogon" ~ "Rhizopogon",
     primary_lifestyle=="ectomycorrhizal" ~ "Other ECM",
-    str_detect(primary_lifestyle, regex("saprotroph", ignore_case = TRUE)) ~ "Saprotroph",
     .default="Other"
   ))
 
@@ -48,20 +46,18 @@ GuildSummary=
            factor(guild_edit, 
                   levels=c(
                     "Other",
-                    "Saprotroph",
-                    "Dark Septate Endophyte",
                     "Other ECM",
+                    "Phialocephala",
                     "Rhizopogon",
                     "Suillus"
                   )))
 
 guild_colors <- c(
-  "Suillus" = "slateblue4",
-  "Rhizopogon" = "slateblue1",
-  "Dark Septate Endophyte" = "orangered3",
-  "Other ECM" = "springgreen4",
-  "Saprotroph" = "grey65",
-  "Other"="grey65"
+  "Suillus" = "#0072B2",
+  "Rhizopogon" = "#56B4E9",
+  "Phialocephala" = "#CC79A7",
+  "Other ECM" = "#E69F00",
+  "Other"="#999999"
 )
 
 ggplot(GuildSummary, 
@@ -76,4 +72,3 @@ ggplot(GuildSummary,
   labs(fill = "Fungal Guild") +
   scale_y_continuous(limits = c(0,1.02), expand = c(0, 0)) +
   facet_grid(.~TreeSpecies_SampleType, scales="free")
-
