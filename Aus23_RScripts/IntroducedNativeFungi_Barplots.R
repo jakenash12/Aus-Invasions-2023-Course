@@ -31,7 +31,8 @@ Introduced_plot =
   mutate(otu = factor(otu, levels = unique(c(
     otu[Genus == "Suillus"], 
     otu[Genus == "Rhizopogon"], 
-    otu[!Genus %in% c("Suillus", "Rhizopogon")]
+    otu[Genus == "Phialocephala"],
+    otu[!Genus %in% c("Suillus", "Rhizopogon", "Phialocephala")]
   )))) %>%
   ggplot(aes(x = SampleType,
              y = Abundance,
