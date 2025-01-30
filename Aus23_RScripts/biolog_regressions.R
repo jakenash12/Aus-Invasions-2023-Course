@@ -29,7 +29,7 @@ plot <- ds %>%
   facet_grid(~TreeSpecies)+
   labs(y = "Litter Depth (cm)", x  = "ECM Richness (soil)")
 
-ggsave("Aus-Invasions-2023-Course/Plots/Analyses/litterdepth_vs_ecm_moisture_tree.png", plot = plot, dpi = 500, width = 5, heigh = 3, units = "in")
+#ggsave("Aus-Invasions-2023-Course/Plots/Analyses/litterdepth_vs_ecm_moisture_tree.png", plot = plot, dpi = 500, width = 5, heigh = 3, units = "in")
 
 
 hist(ds$ergosterol) #Looks more like a gamma dist...
@@ -54,7 +54,7 @@ plot <- ds %>%
   geom_smooth(method = "lm")+
   labs(y = "Ergosterol", x  = "ECM Abundance (soil)")
 
-ggsave("C:/Users/beabo/OneDrive/Documents/NAU/Classes Archived/Australia Co-Invasions Course 2023/Aus-Invasions-2023-Course/Plots/Analyses/ergosterol_vs_ecm_tree.png", plot = plot, dpi = 500, width = 5, heigh = 3, units = "in")
+ggsave("C:/Users/beabo/OneDrive/Documents/NAU/Classes Archived/Australia Co-Invasions Course 2023/Aus-Invasions-2023-Course/Plots/Analyses/ergosterol_vs_ecm_tree.png", plot = plot, dpi = 1000, width = 5, heigh = 3, units = "in")
 
 plot
 
