@@ -38,10 +38,20 @@ mod <- glm(ergosterol ~ ECM_abund_soil+TreeSpecies, family = "Gamma", ds)
 summary(mod)
 
 lin_mod <- lm(ergosterol~ ECM_abund_soil+TreeSpecies, ds)
-summary(lin_mod)
+mod_summary <- summary(lin_mod)
 
-#Interaction term is not significant. ECM abundance in soil seems to be a part of the ergosterol. Ergosterol higher around pines. 
+# Extract relevant stats
+r_squared <- round(mod_summary$r.squared, 3)
+p_ecm <- round(coef(mod_summary)[2, 4], 3)  # p-value for ECM_abund_soil
+p_species <- round(coef(mod_summary)[3, 4], 3)  # p-value for TreeSpecies
 
+intercept <- round(coef(lin_mod)[1], 3)
+slope_ecm <- round(coef(lin_mod)[2], 3)
+
+# Construct regression equation string
+regression_eq <- paste0("y = ", intercept, " + ", slope_ecm, " * ECM")
+
+# Create the plot
 plot <- ds %>%
   ggplot(aes(y = ergosterol, x = ECM_abund_soil, color = TreeSpecies)) +
   geom_point() +
@@ -49,12 +59,20 @@ plot <- ds %>%
   theme(axis.text = element_text(colour="black"),
         axis.line = element_line(colour = "black"),
         panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank()
-  )+
- # geom_smooth(aes(group = TreeSpecies), method = "glm", method.args = list(family = "Gamma"), se= F) +
-  geom_smooth(method = "lm")+
-  labs(y = "Ergosterol", x  = "ECM Abundance (soil)")
+  ) +
+  geom_smooth(method = "lm") +
+  labs(y = "Ergosterol", x  = "ECM Abundance (Soil)") +
+  annotate("text", x = max(ds$ECM_abund_soil, na.rm = TRUE) * 0.7, 
+           y = max(ds$ergosterol, na.rm = TRUE) * 0.9, 
+           label = paste0("R² = ", r_squared, 
+                          "\np (ECM) = ", p_ecm, 
+                          "\np (Species) = ", p_species
+                          ),
+           hjust = 0, size = 3)
 
-ggsave("C:/Users/beabo/OneDrive/Documents/NAU/Classes Archived/Australia Co-Invasions Course 2023/Aus-Invasions-2023-Course/Plots/Analyses/ergosterol_vs_ecm_tree.png", plot = plot, dpi = 1000, width = 5, heigh = 3, units = "in")
+plot
+
+ggsave("C:/Users/beabo/OneDrive/Documents/NAU/Classes Archived/Australia Co-Invasions Course 2023/Aus-Invasions-2023-Course/Plots/Analyses/ergosterol_vs_ecm_tree.png", plot = plot, dpi = 1000, width = 6, height = 5, units = "in")
 
 plot
 
