@@ -3,8 +3,15 @@ library(magrittr)
 library(readxl)
 
 #reads in curated sheet of native and introduced fungi
+#also creates a new Species column that gives duplicates
+#(i.e. multiple Laccara or Tomentella sp) unique numbers
 ITS2_Curated_NativeIntroduced=
-  read_xlsx("../Aus23_ITS_Metabarcoding/ITS2_Curated_NativeIntroduced.xlsx")
+  read_xlsx("../Aus23_ITS_Metabarcoding/ITS2_Curated_NativeIntroduced.xlsx") %>%
+  group_by(Species) %>%
+  arrange(Species, desc(Provenance == "Introduced"), .by_group = TRUE) %>%
+  mutate(Species_unique=case_when(Species %in% c("Laccaria_sp", "Tomentella_sp") ~ paste(Species, row_number(), sep = " "),
+                                  .default=Species)) %>%
+  ungroup()
 
 #generates more curated list of fungi of interest
 SelectFungi=c("Suillus_quiescens", "Suillus_luteus",
@@ -17,13 +24,14 @@ SelectFungi=c("Suillus_quiescens", "Suillus_luteus",
 OtuMatITS_pooled_rel_curated=
   OtuMatITS_pooled_rel %>%
   select(ITS2_Curated_NativeIntroduced$`Feature ID`) %>%
-  mutate(TreeSampleType=rownames(.)) %>%
+  mutate(TreeSampleType=rownames(.)) %>% 
   gather("otu","Abundance",-TreeSampleType) %>%
   left_join(Metadata_ITS_pooled) %>%
   filter(SampleType!="Neg") %>%
   left_join(ITS2_Curated_NativeIntroduced, by=c("otu"="Feature ID")) %>%
   mutate(Species = gsub("_", " ", Species)) %>%
-  mutate(Species = gsub(" sp", " sp.", Species))
+  mutate(Species = gsub(" sp", " sp.", Species)) %>%
+  mutate(TreeSpecies = gsub("Eucalyptus", "Eucalypt", TreeSpecies))
 
 Introduced_plot =
   OtuMatITS_pooled_rel_curated %>%
@@ -53,7 +61,7 @@ Introduced_plot =
     . ~ otu, 
     scales = "free_y", 
     labeller = labeller(otu = function(otu_levels) {
-      OtuMatITS_pooled_rel_curated$Species[match(otu_levels, OtuMatITS_pooled_rel_curated$otu)]
+      OtuMatITS_pooled_rel_curated$Species_unique[match(otu_levels, OtuMatITS_pooled_rel_curated$otu)]
     }),
     strip.position = "top"
   ) +
@@ -93,7 +101,7 @@ Native_plot =
     . ~ otu, 
     scales = "free_y", 
     labeller = labeller(otu = function(otu_levels) {
-      OtuMatITS_pooled_rel_curated$Species[match(otu_levels, OtuMatITS_pooled_rel_curated$otu)]
+      OtuMatITS_pooled_rel_curated$Species_unique[match(otu_levels, OtuMatITS_pooled_rel_curated$otu)]
     }),
     strip.position = "top"
   ) +

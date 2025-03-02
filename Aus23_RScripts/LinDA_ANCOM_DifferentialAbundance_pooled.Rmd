@@ -56,7 +56,7 @@ TaxMat16S_SILVA=
   mutate(across(!contains("otu"), ~extract_text(.))) %>%
   mutate(across(everything(), ~ifelse(grepl("uncultured", ., fixed = TRUE), NA, .))) %>%
   mutate(across(everything(), ~ifelse(grepl("Unknown", ., fixed = TRUE), NA, .))) %>%
-  mutate(Genus = ifelse(Genus == "Subgroup_10", "Thermoanaerobaculaceae_Subgroup_10", Genus)) %>%
+  mutate(Genus = ifelse(Genus == "Subgroup_10", "Thermoanaerobaculaceae_Subgroup_10", Genus))
 
 OtuMat18S_rare_pooled=
   read_delim("../Aus23_18S_Metabarcoding/OTUTables/OtuMat18S_rare_pooled.csv", delim=",") %>%
