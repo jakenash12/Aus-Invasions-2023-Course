@@ -44,6 +44,11 @@ bac.soil.gen <- soil.16s[bac.soil.gen.names]
 fun.root.gen <- root.its[fun.root.gen.names]
 fun.soil.gen <- soil.its[fun.soil.gen.names]
 
+write.csv(bac.root.gen, "Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rare_Roots_Top5Genus_pooled.csv")
+write.csv(bac.soil.gen, "Aus23_16S_Metabarcoding/OTUTables/OtuMat16S_rare_Soil_Top5Genus_pooled.csv")
+write.csv(fun.root.gen, "Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare_Roots_Top5Genus_pooled.csv")
+write.csv(fun.soil.gen, "Aus23_ITS_Metabarcoding/OTUTables/OtuMatITS_rare_Soil_Top5Genus_pooled.csv")
+
 # pull out significant environmental variables and differentially abundant genera
 sigvars <- c("treeName", "Tween_40_BiologDay5", "L.Serine_BiologDay5", "Glycyl.L.Glutamic_Acid_BiologDay5",
              "i.Erythritol_BiologDay5", "Putrescine_BiologDay5", "L.Asparagine_BiologDay5", 
@@ -59,7 +64,7 @@ sigdat <- fulldat[sigvars]
 sigdat <- sigdat[,sigvar.order]
 sigvar.names <- c("Tween 40 utilization", "L-Serine utilization", "Glycyl-L-Glutamic Acid utilization",
   "i-Erythritol utilization", "Putrescine utilization", "L-Asparagine utilization", "Soil moisture",
-  "Soil ergosterol", "Litter O Layer ergosterol", "All litter layer ergosterol",
+  "Soil ergosterol", "Litter O Layer ergosterol", "Total litter layer ergosterol",
   "Proportion pine litter", "Proportion eucalypt litter", "Eucalypt leaf litter %P", "Bacterial Shannon diversity")
 colnames(sigdat)[2:15] <- sigvar.names
                             
@@ -74,14 +79,14 @@ library(Hmisc)
 
 X.order <-c("Tween 40 utilization", "L-Serine utilization", "Glycyl-L-Glutamic Acid utilization",
             "i-Erythritol utilization", "Putrescine utilization", "L-Asparagine utilization", "Soil moisture",
-            "Soil ergosterol", "Litter O Layer ergosterol", "All litter layer ergosterol",
+            "Soil ergosterol", "Litter O Layer ergosterol", "Total litter layer ergosterol",
             "Proportion pine litter", "Proportion eucalypt litter", "Eucalypt leaf litter %P")
 
 #### Bacterial roots #####
 
 # Get correlation value (R) 
 bac.root.r <- rcorr(as.matrix(bac.root.sig[2:ncol(bac.root.sig)]))$r
-bac.root.r2 <- rcorr(as.matrix(bac.root.sig[2:ncol(bac.root.sig)]), type = "spearman")$r
+bac.root.r <- rcorr(as.matrix(bac.root.sig[2:ncol(bac.root.sig)]), type = "spearman")$r
 
 # subset for just the relationships we want
 bac.root.r.format <- bac.root.r %>% 
@@ -110,7 +115,7 @@ ggsave("Correlations/Heatmaps/bacteria_root_genus_heatmap_v2.png", width = 5.5, 
 #### Bacterial soil #####
 
 # Get correlation value (R) and P value (P)
-bac.soil.r <- rcorr(as.matrix(bac.soil.sig[2:ncol(bac.soil.sig)]))$r
+bac.soil.r <- rcorr(as.matrix(bac.soil.sig[2:ncol(bac.soil.sig)]), type = "spearman")$r
 
 # subset for just the relationships we want
 bac.soil.r.format <- bac.soil.r %>% 
@@ -140,7 +145,7 @@ ggsave("Correlations/Heatmaps/bacteria_soil_genus_heatmap_v2.png", width = 5.5, 
 #### Fungal roots #####
 
 # Get correlation value (R) and P value (P)
-fun.root.r <- rcorr(as.matrix(fun.root.sig[2:ncol(fun.root.sig)]))$r
+fun.root.r <- rcorr(as.matrix(fun.root.sig[2:ncol(fun.root.sig)]), type = "spearman")$r
 
 # subset for just the relationships we want
 fun.root.r.format <- fun.root.r %>% 
@@ -170,7 +175,7 @@ ggsave("Correlations/Heatmaps/fungal_root_genus_heatmap_v2.png", width = 5.5, he
 #### Fungal soil #####
 
 # Get correlation value (R) and P value (P)
-fun.soil.r <- rcorr(as.matrix(fun.soil.sig[2:ncol(fun.soil.sig)]))$r
+fun.soil.r <- rcorr(as.matrix(fun.soil.sig[2:ncol(fun.soil.sig)]), type = "spearman")$r
 
 # subset for just the relationships we want
 fun.soil.r.format <- fun.soil.r %>% 
@@ -194,7 +199,7 @@ ggplot(fun.soil_long, aes(x = factor(Variable, X.order), y = factor(Genus, fun.s
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   labs(fill = "Correlation") +
   coord_fixed()
-ggsave("Correlations/Heatmaps/fungal_soil_genus_heatmap_v2.png", width = 5.5, height = 3.5, dpi = 300)
+ggsave("Correlations/Heatmaps/fungal_soil_genus_heatmap_spearman.png", width = 5.5, height = 3.5, dpi = 300)
 
 
 
